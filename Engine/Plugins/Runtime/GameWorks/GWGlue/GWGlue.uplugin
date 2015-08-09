@@ -9,6 +9,7 @@
 	"EngineVersion" : "4.8.0",
 	"Description" : "Glue code for the GameWorks plugins",
 	"Category" : "GameWorks",
+	"EnabledByDefault" : true,
 	
 	"Modules" :
 	[

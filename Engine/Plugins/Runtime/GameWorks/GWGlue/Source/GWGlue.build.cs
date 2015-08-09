@@ -9,5 +9,11 @@ public class GWGlue : ModuleRules
 	{
 		PublicIncludePaths.Add("GWGlue/Public");
 		PrivateIncludePaths.Add("GWGlue/Private");
+
+        PublicDependencyModuleNames.Add("Core");
+        PublicDependencyModuleNames.Add("Engine");
+
+
+		Definitions.Add("GWGLUE");
 	}
 }

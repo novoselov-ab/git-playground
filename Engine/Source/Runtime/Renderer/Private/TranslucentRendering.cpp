@@ -10,6 +10,7 @@
 #include "SceneFilterRendering.h"
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
+#include "RendererHooks.h"
 
 static void SetTranslucentRenderTargetAndState(FRHICommandList& RHICmdList, const FViewInfo& View, bool bSeparateTranslucencyPass, bool bFirstTimeThisFrame = false)
 {
@@ -1033,6 +1034,10 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 			const FViewInfo& View = Views[ViewIndex];
 
 			SetTranslucentRenderTargetAndState(RHICmdList, View, false);
+
+#ifdef GWGLUE
+			FRendererHooks::get().OnTranslucentViewRender(View);
+#endif
 
 			// Draw only translucent prims that don't read from scene color
 			View.TranslucentPrimSet.DrawPrimitives(RHICmdList, View, *this, false);
