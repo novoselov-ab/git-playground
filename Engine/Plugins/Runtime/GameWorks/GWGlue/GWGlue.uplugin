@@ -1,0 +1,21 @@
+{
+	"FileVersion" : 3,
+	
+	"FriendlyName" : "GameWorks Glue Plugin",
+	"Version" : 1,
+	"VersionName" : "1.0",
+	"CreatedBy" : "nVidia",
+	"CreatedByURL" : "http://gameworks.com",
+	"EngineVersion" : "4.8.0",
+	"Description" : "Glue code for the GameWorks plugins",
+	"Category" : "GameWorks",
+	
+	"Modules" :
+	[
+		{
+			"Name" : "GWGlue",
+			"Type" : "Runtime",
+			"WhitelistPlatforms" : [ "Win32", "Win64" ]
+		}
+	]
+}
