@@ -12,7 +12,7 @@
 #include "HeightfieldLighting.h"
 
 //#ifdef GWGLUE
-#include "ViewInfoGW.h"
+#include "GameWorks/ViewInfoGW.h"
 //#endif
 
 // Forward declarations.

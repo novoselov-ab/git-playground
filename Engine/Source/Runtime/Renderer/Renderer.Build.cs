@@ -30,9 +30,8 @@ public class Renderer : ModuleRules
 				"RenderCore", 
 				"RHI", 
 				"ShaderCore",
-				"UtilityShaders",
-				"GWGlue"
-			}
+				"UtilityShaders"
+            }
 			);
 
         PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay" });

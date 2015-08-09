@@ -16,7 +16,7 @@ typedef TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitiveArr
 
 	NB: This class is a singleton. Since it needs to maintain state, I prefer this to static. Also, injecting or passing this around would be a real pain.
 */
-class GWGLUE_API FRendererHooks
+class ENGINE_API FRendererHooks
 {
 public:
 	static FRendererHooks& get()

@@ -12,7 +12,7 @@
 #include "RHIStaticStates.h"
 
 //#ifdef GWGLUE
-#include "SceneRenderTargetsGW.h"
+#include "GameWorks/SceneRenderTargetsGW.h"
 //#endif
 
 struct IPooledRenderTarget;

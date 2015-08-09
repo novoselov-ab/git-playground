@@ -10,7 +10,10 @@
 #include "SceneFilterRendering.h"
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
-#include "RendererHooks.h"
+
+//#ifdef GWGLUE
+#include "GameWorks/RendererHooks.h"
+//#endif
 
 static void SetTranslucentRenderTargetAndState(FRHICommandList& RHICmdList, const FViewInfo& View, bool bSeparateTranslucencyPass, bool bFirstTimeThisFrame = false)
 {

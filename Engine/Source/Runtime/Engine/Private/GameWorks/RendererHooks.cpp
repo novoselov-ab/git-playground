@@ -1,4 +1,4 @@
-#include "GWGluePCH.h"
+#include "EnginePrivate.h"
 
 void FRendererHooks::OnTranslucentViewRender(const FViewInfo &View)
 {

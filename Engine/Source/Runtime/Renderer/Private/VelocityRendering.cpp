@@ -9,7 +9,7 @@
 #include "SceneUtils.h"
 
 //#ifdef GWGLUE
-#include "RendererHooks.h"
+#include "GameWorks/RendererHooks.h"
 //#endif
 
 // Changing this causes a full shader recompile

@@ -11,7 +11,7 @@
 #include "SceneUtils.h"
 
 //#ifdef GWGLUE
-#include "RendererHooks.h"
+#include "GameWorks/RendererHooks.h"
 //#endif
 
 static TAutoConsoleVariable<float> CVarCSMShadowDepthBias(

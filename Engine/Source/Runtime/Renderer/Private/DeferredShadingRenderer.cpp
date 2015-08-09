@@ -24,7 +24,7 @@
 #include "../../Engine/Private/SkeletalRenderGPUSkin.h"		// GPrevPerBoneMotionBlur
 
 //#ifdef GWGLUE
-#include "RendererHooks.h"
+#include "GameWorks/RendererHooks.h"
 //#endif
 
 TAutoConsoleVariable<int32> CVarEarlyZPass(

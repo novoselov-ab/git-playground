@@ -3,7 +3,7 @@
 #pragma once
 
 //#ifdef GWGLUE
-#include "PrimitiveViewRelevanceGW.h"
+#include "GameWorks/PrimitiveViewRelevanceGW.h"
 //#endif
 
 
@@ -53,9 +53,9 @@ struct FPrimitiveViewRelevance
 	 */
 	uint32 bInitializedThisFrame : 1;
 
-#ifdef GWGLUE
+//#ifdef GWGLUE
 	FPrimitiveViewRelevanceGW	GWData;
-#endif
+//#endif
 
 	bool HasTranslucency() const 
 	{
