@@ -24,9 +24,9 @@ void FRendererHooks::OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandL
 	}
 }
 
-void FRendererHooks::OnRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
+void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
 {
-	for (auto callback : RenderDepthDynamicCallbacks.getCallbacks())
+	for (auto callback : RenderProjectedShadowDepthDynamicCallbacks.getCallbacks())
 	{
 		callback->getCallback()(View, SubjectPrimitives, ViewMatrices, ShaderDepthBias, InvMaxSubjectDepth);
 	}

@@ -126,6 +126,10 @@ public:
 	// Called when appInit is called.
 	static FSimpleMulticastDelegate OnInit;
 
+//#ifdef GWGLUE
+	static FSimpleMulticastDelegate OnRHIInit;
+//#endif
+
 	// Called when the application is about to exit.
 	static FSimpleMulticastDelegate OnExit;
 

@@ -14,6 +14,6 @@ public class GWGlue : ModuleRules
         PublicDependencyModuleNames.Add("Engine");
 
 
-		Definitions.Add("GWGLUE");
+		Definitions.Add("GWGLUE=1");
 	}
 }

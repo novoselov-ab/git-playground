@@ -2,6 +2,10 @@
 
 #pragma once
 
+//#ifdef GWGLUE
+#include "PrimitiveViewRelevanceGW.h"
+//#endif
+
 
 /**
  * The different types of relevance a primitive scene proxy can declare towards a particular scene view.
@@ -15,7 +19,7 @@ struct FPrimitiveViewRelevance
 	/** The primitive's dynamic elements are rendered for the view. */
 	uint32 bDynamicRelevance : 1;
 	/** The primitive is drawn. */
-	uint32 bDrawRelevance : 1;
+	uint32 bDrawRelevance : 1; 
 	/** The primitive is casting a shadow. */
 	uint32 bShadowRelevance : 1;
 	/** The primitive should render to the custom depth pass. */
@@ -48,6 +52,10 @@ struct FPrimitiveViewRelevance
 	 * But we may still need to render them from other views like shadow passes, so this tracks whether we can reuse the cached relevance or not.
 	 */
 	uint32 bInitializedThisFrame : 1;
+
+#ifdef GWGLUE
+	FPrimitiveViewRelevanceGW	GWData;
+#endif
 
 	bool HasTranslucency() const 
 	{

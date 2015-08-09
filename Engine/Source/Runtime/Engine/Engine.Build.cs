@@ -56,6 +56,7 @@ public class Engine : ModuleRules
 				"SynthBenchmark",
                 "AIModule",
 				"DatabaseSupport",
+                "GWGlue"
 			}
 		);
 
@@ -72,6 +73,8 @@ public class Engine : ModuleRules
                 "Internationalization"
 			}
         );
+
+        CircularlyReferencedDependentModules.Add("GWGlue");
 
         CircularlyReferencedDependentModules.Add("AIModule");
 		CircularlyReferencedDependentModules.Add("Landscape");

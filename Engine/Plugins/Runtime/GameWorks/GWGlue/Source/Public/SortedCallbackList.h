@@ -43,15 +43,15 @@ private:
 template <typename TCallback>
 uint8 FSortedCallbackList<TCallback>::Add(TCallback callback, int8 priority)
 {
-	auto callback = std::make_shared<FSortableCallback<TCallback>>(callback, priority, Callbacks.size());
-	Callbacks.push_back(callback);
+	auto cb = std::make_shared<FSortableCallback<TCallback>>(callback, priority, Callbacks.size());
+	Callbacks.push_back(cb);
 
-	std::sort(Callbacks.begin(), Callbacks.end(), [](const FSortableCallback<TCallback>& lhs, const FSortableCallback<TCallback>& rhs)
+	std::sort(Callbacks.begin(), Callbacks.end(), [](const std::shared_ptr<FSortableCallback<TCallback>>& lhs, const std::shared_ptr<FSortableCallback<TCallback>>& rhs)
 	{
-		return lhs.getPriority() < rhs.getPriority();
+		return lhs->getPriority() < rhs->getPriority();
 	});
 
-	return callback->getHandle();
+	return cb->getHandle();
 }
 
 template <typename TCallback>

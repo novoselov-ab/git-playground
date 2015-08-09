@@ -10,6 +10,10 @@
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
 
+//#ifdef GWGLUE
+#include "RendererHooks.h"
+//#endif
+
 static TAutoConsoleVariable<float> CVarCSMShadowDepthBias(
 	TEXT("r.Shadow.CSMDepthBias"),
 	20.0f,
@@ -1353,6 +1357,14 @@ void FProjectedShadowInfo::RenderDepthDynamic(FRHICommandList& RHICmdList, FScen
 		const FMeshBatch& MeshBatch = *MeshBatchAndRelevance.Mesh;
 		FShadowDepthDrawingPolicyFactory::DrawDynamicMesh(RHICmdList, *FoundView, Context, MeshBatch, false, true, MeshBatchAndRelevance.PrimitiveSceneProxy, MeshBatch.BatchHitProxyId);
 	}
+
+//#ifdef GWGLUE
+	FViewMatrices ViewMatrices;
+	ViewMatrices.ViewMatrix = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
+
+	FRendererHooks::get().OnProjectedShadowRenderDepthDynamic(FoundView, SubjectPrimitives, ViewMatrices, GetShaderDepthBias(), InvMaxSubjectDepth);
+//#endif
+
 }
 
 class FDrawShadowMeshElementsThreadTask

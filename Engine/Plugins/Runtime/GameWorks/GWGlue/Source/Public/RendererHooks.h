@@ -36,8 +36,9 @@ public:
 	void OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandList &RHICmdList);
 	
 	// TODO: Make this interface more consistent.
-	void OnRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
+	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
+	// JDM: This is really hacky - figure out a way to remove this.
 	void OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed);
 
 	// Subscription methods
@@ -48,7 +49,7 @@ public:
 	
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> RenderBasePassDynamicCallbacks;
 
-	FSortedCallbackList<std::function<void(const FViewInfo*, PrimitiveArrayType, FViewMatrices, float, float)>> RenderDepthDynamicCallbacks;
+	FSortedCallbackList<std::function<void(const FViewInfo*, PrimitiveArrayType, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
 
 	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
 

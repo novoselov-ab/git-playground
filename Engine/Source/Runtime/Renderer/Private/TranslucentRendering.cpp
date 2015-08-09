@@ -1035,9 +1035,9 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 
 			SetTranslucentRenderTargetAndState(RHICmdList, View, false);
 
-#ifdef GWGLUE
+//#ifdef GWGLUE
 			FRendererHooks::get().OnTranslucentViewRender(View);
-#endif
+//#endif
 
 			// Draw only translucent prims that don't read from scene color
 			View.TranslucentPrimSet.DrawPrimitives(RHICmdList, View, *this, false);

@@ -19,7 +19,7 @@
 * Stores the updated matrices needed to skin the verts.
 * Created by the game thread and sent to the rendering thread as an update 
 */
-class FDynamicSkelMeshObjectDataGPUSkin : public FDynamicSkelMeshObjectData
+class ENGINE_API FDynamicSkelMeshObjectDataGPUSkin : public FDynamicSkelMeshObjectData
 {
 public:
 

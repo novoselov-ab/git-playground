@@ -11,6 +11,10 @@
 #include "../SystemTextures.h"
 #include "RHIStaticStates.h"
 
+//#ifdef GWGLUE
+#include "SceneRenderTargetsGW.h"
+//#endif
+
 struct IPooledRenderTarget;
 
 /** Number of cube map shadow depth surfaces that will be created and used for rendering one pass point light shadows. */
@@ -548,6 +552,10 @@ public:
 
 	/** Whether the preshadow cache render target has been newly allocated and cached shadows need to be re-rendered. */
 	bool bPreshadowCacheNewlyAllocated;
+
+// #ifdef GWGLUE
+	FSceneRenderTargetsGW	GWData;
+// #endif
 
 private:
 	/** used by AdjustGBufferRefCount */

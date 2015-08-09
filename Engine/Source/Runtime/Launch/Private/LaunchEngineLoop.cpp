@@ -1313,6 +1313,10 @@ int32 FEngineLoop::PreInit( const TCHAR* CmdLine )
 	// Initialize the RHI.
 	RHIInit(bHasEditorToken);
 
+//#ifdef GWGLUE
+	FCoreDelegates::OnRHIInit.Broadcast();
+//#endif
+
 	if (!FPlatformProperties::RequiresCookedData())
 	{
 		check(!GShaderCompilingManager);

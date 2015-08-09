@@ -11,6 +11,10 @@
 #include "CustomDepthRendering.h"
 #include "HeightfieldLighting.h"
 
+//#ifdef GWGLUE
+#include "ViewInfoGW.h"
+//#endif
+
 // Forward declarations.
 class FPostprocessContext;
 
@@ -480,6 +484,11 @@ public:
 
 	/** Custom visibility query for view */
 	ICustomVisibilityQuery* CustomVisibilityQuery;
+
+	// #ifdef GWGLUE
+	/** The GameWorks Glue specific data used in FViewInfo */
+	FViewInfoGW		GWData;
+	// #endif
 
 	/** 
 	 * Initialization constructor. Passes all parameters to FSceneView constructor
