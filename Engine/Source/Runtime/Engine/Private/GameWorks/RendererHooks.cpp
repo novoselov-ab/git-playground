@@ -40,11 +40,28 @@ void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, 
 	}
 }
 
+void FRendererHooks::OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
+{
+	for (auto callback : RenderProjectedShadowPreShadowCallbacks.getCallbacks())
+	{
+		callback->getCallback()(ShadowInfo, View, ReceiverPrimitives);
+	}
+}
+
+
 void FRendererHooks::OnProjectedShadowRenderProjection(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, FRHICommandList &RHICmdList)
 {
 	for (auto callback : RenderProjectedShadowRenderProjectionCallbacks.getCallbacks())
 	{
 		callback->getCallback()(ShadowInfo, View, RHICmdList);
+	}
+}
+
+void FRendererHooks::OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandList& RHICmdList)
+{
+	for (auto callback : RenderProjectedShadowRenderProjectionEndCallbacks.getCallbacks())
+	{
+		callback->getCallback()(ShadowInfo, View, ViewIndex, RHICmdList);
 	}
 }
 
@@ -63,12 +80,3 @@ void FRendererHooks::OnPostVisibilityFrameSetup(FViewInfo &View)
 		callback->getCallback()(View);
 	}
 }
-
-void FRendererHooks::OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
-{
-	for (auto callback : RenderProjectedShadowPreShadowCallbacks.getCallbacks())
-	{
-		callback->getCallback()(ShadowInfo, View, ReceiverPrimitives);
-	}
-}
-

@@ -2249,6 +2249,10 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		// Clear the stencil buffer to 0.
 		RHICmdList.Clear(false, FColor(0, 0, 0), false, 0, true, 0, FIntRect());
 	}
+
+// #ifdef GWGLUE
+	FRendererHooks::get().OnProjectedShadowRenderProjectionEnd(*this, *View, ViewIndex, RHICmdList);
+// #endif
 }
 
 

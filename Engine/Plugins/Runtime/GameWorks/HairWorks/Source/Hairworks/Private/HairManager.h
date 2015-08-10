@@ -22,6 +22,8 @@ public:
 
 	void RenderShadowProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
 
+	void PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandList& RHICmdList);
+
 	void RenderVelocitiesInner(const FViewInfo &View);
 
 	void SortVisibleDynamicPrimitives(FViewInfo &View);

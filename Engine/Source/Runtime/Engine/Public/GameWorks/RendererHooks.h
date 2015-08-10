@@ -42,6 +42,7 @@ public:
 
 	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives);
 	void OnProjectedShadowRenderProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
+	void OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandList& RHICmdList);
 
 	// JDM: This is really hacky - figure out a way to remove this.
 	void OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed);
@@ -62,6 +63,8 @@ public:
 
 	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, PrimitiveArrayType &) >> RenderProjectedShadowPreShadowCallbacks;
 	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, FRHICommandList&)>> RenderProjectedShadowRenderProjectionCallbacks;
+
+	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, int32 ViewIndex, FRHICommandList&)>> RenderProjectedShadowRenderProjectionEndCallbacks;
 
 	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
 

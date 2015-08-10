@@ -40,6 +40,8 @@ FHairManager::FHairManager():
 	FRendererHooks::get().RenderProjectedShadowDepthDynamicCallbacks.Add(std::bind(&FHairManager::RenderDepthDynamic, this, _1, _2, _3, _4, _5), 0);
 	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
 	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
+	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
+
 	FRendererHooks::get().SetHairLightCallbacks.Add(std::bind(&FHairManager::SetHairLightSettings, this, _1, _2, _3), 0);
 	FRendererHooks::get().PostVisibilityFrameSetupCallbacks.Add(std::bind(&FHairManager::SortVisibleDynamicPrimitives, this, _1), 0);
 
@@ -376,6 +378,23 @@ void FHairManager::RenderDepthDynamic(const FViewInfo* View, PrimitiveArrayType 
 
 }
 
+void FHairManager::UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
+{
+	if (View->bHasHair)
+	{
+		for (auto PrimitiveSceneInfo : ReceiverPrimitives)
+		{
+			auto& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveSceneInfo->GetIndex()];
+			if (ViewRelevance.bHair)
+			{
+				checkSlow(!ShadowInfo.GWData.bHairReceiver);
+				ShadowInfo.GWData.bHairReceiver = true;
+				break;
+			}
+		}
+	}
+}
+
 void FHairManager::RenderShadowProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList)
 {
 	if (shadowInfo.GWData.bHairReceiver)
@@ -388,6 +407,39 @@ void FHairManager::RenderShadowProjection(const FProjectedShadowInfo& shadowInfo
 		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
 
 		RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
+	}
+
+}
+
+void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandList& RHICmdList)
+{
+	if (shadowInfo.GWData.bHairReceiver)
+	{
+		shadowInfo.GWData.bHairReceiver = false;
+
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
+		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
+
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+	}
+
+	if (View.GWData.bHasHair && !shadowInfo.bPreShadow && !shadowInfo.bSelfShadowOnly)
+	{
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
+		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+
+		checkSlow(!shadowInfo.bHairRenderProjection);
+		shadowInfo.bHairRenderProjection = true;
+		shadowInfo.RenderProjection(RHICmdList, ViewIndex, &View);
+		shadowInfo.bHairRenderProjection = false;
+
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
+		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
 
 }
@@ -450,23 +502,5 @@ void FHairManager::UpdateHairInstanceDescriptor(GFSDK_HairInstanceID InstanceId,
 	HairVisualizerCVarUpdate(ShadingNormalBone);
 
 	HairWorksSdk->UpdateInstanceDescriptor(InstanceId, HairDesc);
-
-}
-
-void FHairManager::UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
-{
-	if (View->bHasHair)
-	{
-		for (auto PrimitiveSceneInfo : ReceiverPrimitives)
-		{
-			auto& ViewRelevance = View->PrimitiveViewRelevanceMap[PrimitiveSceneInfo->GetIndex()];
-			if (ViewRelevance.bHair)
-			{
-				checkSlow(!ShadowInfo.GWData.bHairReceiver);
-				ShadowInfo.GWData.bHairReceiver = true;
-				break;
-			}
-		}
-	}
 
 }

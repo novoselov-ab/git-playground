@@ -1059,6 +1059,8 @@ public:
 		{
 			const float TransitionSize = ShadowInfo->ComputeTransitionSize();
 
+			//JDM: FIXME - in HW there's a read from a CVar here. Find a better way to do this.
+
 			SetShaderValue(RHICmdList, ShaderRHI, SoftTransitionScale, FVector(0, 0, 1.0f / TransitionSize));
 		}
 
