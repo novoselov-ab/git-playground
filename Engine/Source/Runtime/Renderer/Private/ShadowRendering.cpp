@@ -1939,6 +1939,10 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	{
 		SCOPED_DRAW_EVENTF(RHICmdList, EventMaskSubjects, TEXT("Stencil Mask Subjects"));
 
+// #ifdef GWGLUE
+		FRendererHooks::get().OnProjectedShadowPreShadow(*this, *View, ReceiverPrimitives);
+// #endif
+
 		// Set stencil to one.
 		RHICmdList.SetDepthStencilState(TStaticDepthStencilState<
 			false,CF_DepthNearOrEqual,
@@ -2168,6 +2172,11 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		RHICmdList.SetBlendState(TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI());
 	}
 	
+// #ifdef GWGLUE
+	FRendererHooks::get().OnProjectedShadowRenderProjection(*this, View, RHICmdList);
+// #endif
+
+
 	{
 		uint32 LocalQuality = GetShadowQuality();
 

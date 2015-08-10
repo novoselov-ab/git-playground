@@ -525,6 +525,11 @@ bool FDeferredShadingSceneRenderer::RenderBasePassView(FRHICommandListImmediate&
 	bool bDirty = false; 
 	SetupBasePassView(RHICmdList, View.ViewRect, ViewFamily.EngineShowFlags.ShaderComplexity);
 	bDirty |= RenderBasePassStaticData(RHICmdList, View);
+	
+//#ifdef GWGLUE
+	FRendererHooks::get().OnRenderBasePassView(View);
+//#endif
+
 	RenderBasePassDynamicData(RHICmdList, View, bDirty);
 
 	return bDirty;

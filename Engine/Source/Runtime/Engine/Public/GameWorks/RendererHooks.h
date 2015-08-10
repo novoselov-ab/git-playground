@@ -6,6 +6,7 @@ class FViewInfo;
 class FRHICommandList;
 struct FVector;
 struct FLinearColor;
+class FProjectedShadowInfo;
 
 typedef TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitiveArrayType;
 
@@ -33,30 +34,42 @@ public:
 	void OnTranslucentViewRender(const FViewInfo &View);
 	void OnRenderVelocitiesInnner(const FViewInfo &View);
 
+	void OnRenderBasePassView(const FViewInfo &View);
 	void OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandList &RHICmdList);
 	
 	// TODO: Make this interface more consistent.
 	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
+	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives);
+	void OnProjectedShadowRenderProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
+
 	// JDM: This is really hacky - figure out a way to remove this.
 	void OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed);
+
+	void OnPostVisibilityFrameSetup(FViewInfo &View);
 
 	// Subscription methods
 
 	// Callback lists
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> TranslucentViewRenderCallbacks;
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderVelocitiesInnerCallbacks;
+
+	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderBasePassViewCallbacks;
 	
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> RenderBasePassDynamicCallbacks;
 
 	FSortedCallbackList<std::function<void(const FViewInfo*, PrimitiveArrayType, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
 
+	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, PrimitiveArrayType &) >> RenderProjectedShadowPreShadowCallbacks;
+	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, FRHICommandList&)>> RenderProjectedShadowRenderProjectionCallbacks;
+
 	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
+
+	FSortedCallbackList<std::function<void(FViewInfo&)>> PostVisibilityFrameSetupCallbacks;
 
 	// Unsub methods? Do we ever want to do that? Probably not.
 
 private:
 	FRendererHooks(const FRendererHooks &) = delete;
 	FRendererHooks& operator=(const FRendererHooks &) = delete;
-
 };
