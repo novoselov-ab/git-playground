@@ -1,9 +1,9 @@
 #pragma once
-#include "RendererHooks.h"
 
 class FHairWorksLogger;
 
-class FHairManager
+
+class HAIRWORKS_API FHairManager
 {
 public:
 	FHairManager();
@@ -15,14 +15,14 @@ public:
 	bool IsHair_GameThread(const void* AssetData, unsigned DataSize);
 
 	void RenderTranslucency(const FViewInfo &View);
-	void RenderBaseView(const FViewInfo &View);
+	void RenderBaseView(FViewInfo &View);
 	void RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList);
 	void SetHairLightSettings(FVector InDirection, FLinearColor InColor, bool InShadow);
-	void RenderDepthDynamic(const FViewInfo* View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
+	void RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
 	void RenderShadowProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
 
-	void PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandList& RHICmdList);
+	void PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList);
 
 	void RenderVelocitiesInner(const FViewInfo &View);
 
@@ -36,7 +36,7 @@ public:
 	void StepSimulation();
 
 	void UpdateHairInstanceDescriptor(GFSDK_HairInstanceID InstanceId, GFSDK_HairInstanceDescriptor& HairDesc);
-	void UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives);
+	void UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives);
 
 	GFSDK_HairSDK* GetHairworksSdk() { return HairWorksSdk; }
 

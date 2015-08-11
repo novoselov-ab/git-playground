@@ -1,5 +1,8 @@
-#include "HairworksPCH.h"
+#include "HairworksEditorPCH.h"
 #include "Editor.h"
+#include "HairworksModule.h"
+#include "HairManager.h"
+#include "HairComponent.h"
 
 /*------------------------------------------------------------------------------
 	UHairFactory.

@@ -1,7 +1,6 @@
 #pragma once
 #include "AssetTypeActions_Base.h"
 #include "AssetToolsModule.h"
-//#include "ContentBrowserModule.h"
 #include "AssetRegistryModule.h"
 
 

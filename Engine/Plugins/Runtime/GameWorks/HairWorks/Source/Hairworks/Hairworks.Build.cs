@@ -29,10 +29,10 @@ namespace UnrealBuildTool.Rules
 					"RenderCore",
 					"Renderer",
 					"ShaderCore",
-    				"UnrealEd",
-				    "AssetTools",
-				    "ContentBrowser",
-                    "EditorStyle"
+//     				"UnrealEd",
+// 				    "AssetTools",
+// 				    "ContentBrowser",
+//                     "EditorStyle"
 				}
 				);
 
@@ -44,17 +44,17 @@ namespace UnrealBuildTool.Rules
                 }
             );
 
-		    PrivateIncludePathModuleNames.AddRange(
-			    new string[] {
-				    "AssetTools",
-				    "AssetRegistry"
-			    });
-
-		    DynamicallyLoadedModuleNames.AddRange(
-			    new string[] {
-				    "AssetTools",
-				    "AssetRegistry"
-			    });
+// 		    PrivateIncludePathModuleNames.AddRange(
+// 			    new string[] {
+// 				    "AssetTools",
+// 				    "AssetRegistry"
+// 			    });
+// 
+// 		    DynamicallyLoadedModuleNames.AddRange(
+// 			    new string[] {
+// 				    "AssetTools",
+// 				    "AssetRegistry"
+// 			    });
 
             Definitions.Add("GW_HAIRWORKS=1");
 

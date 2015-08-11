@@ -2173,7 +2173,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	}
 	
 // #ifdef GWGLUE
-	FRendererHooks::get().OnProjectedShadowRenderProjection(*this, View, RHICmdList);
+	FRendererHooks::get().OnProjectedShadowRenderProjection(*this, *View, RHICmdList);
 // #endif
 
 

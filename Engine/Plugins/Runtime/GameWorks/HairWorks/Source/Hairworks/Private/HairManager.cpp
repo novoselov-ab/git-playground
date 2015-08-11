@@ -257,13 +257,13 @@ void FHairManager::FreeResources()
 	}
 }
 
-void FHairManager::RenderBaseView(const FViewInfo &View)
+void FHairManager::RenderBaseView(FViewInfo &View)
 {
 	for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
 	{
 		auto PrimitiveInfo = View.VisibleDynamicPrimitives[MeshIdx];
 		auto& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
-		if (ViewRelevance.bHair)
+		if (ViewRelevance.GWData.bHair)
 		{
 			View.GWData.bHasHair = true;
 			break;
@@ -360,7 +360,7 @@ void FHairManager::SetHairLightSettings(FVector InDirection, FLinearColor InColo
 	bLightShadowed = InShadow;
 }
 
-void FHairManager::RenderDepthDynamic(const FViewInfo* View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
+void FHairManager::RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
 {
 //	UE_LOG(LogHairWorks, Log, TEXT("HM:RenderDepthDynamic"));
 
@@ -378,14 +378,14 @@ void FHairManager::RenderDepthDynamic(const FViewInfo* View, PrimitiveArrayType 
 
 }
 
-void FHairManager::UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
+void FHairManager::UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives)
 {
-	if (View->bHasHair)
+	if (View.GWData.bHasHair)
 	{
 		for (auto PrimitiveSceneInfo : ReceiverPrimitives)
 		{
 			auto& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveSceneInfo->GetIndex()];
-			if (ViewRelevance.bHair)
+			if (ViewRelevance.GWData.bHair)
 			{
 				checkSlow(!ShadowInfo.GWData.bHairReceiver);
 				ShadowInfo.GWData.bHairReceiver = true;
@@ -402,23 +402,23 @@ void FHairManager::RenderShadowProjection(const FProjectedShadowInfo& shadowInfo
 		RHICmdList.SetDepthStencilState(TStaticDepthStencilState<false, CF_LessEqual>::GetRHI());
 
 		// Swap to replace render targets as well as shader resources.
-		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
-		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.GWData.HairLightAttenuation);
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.GWData.HairDepthZ);
 		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
 
-		RHICmdList.SetViewport(View->ViewRect.Min.X, View->ViewRect.Min.Y, 0.0f, View->ViewRect.Max.X, View->ViewRect.Max.Y, 1.0f);
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
 
 }
 
-void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandList& RHICmdList)
+void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList)
 {
 	if (shadowInfo.GWData.bHairReceiver)
 	{
 		shadowInfo.GWData.bHairReceiver = false;
 
-		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
-		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.GWData.HairLightAttenuation);
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.GWData.HairDepthZ);
 		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
@@ -426,18 +426,18 @@ void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, cons
 
 	if (View.GWData.bHasHair && !shadowInfo.bPreShadow && !shadowInfo.bSelfShadowOnly)
 	{
-		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
-		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.GWData.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.GWData.HairLightAttenuation);
 		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
-		checkSlow(!shadowInfo.bHairRenderProjection);
-		shadowInfo.bHairRenderProjection = true;
+		checkSlow(!shadowInfo.GWData.bHairRenderProjection);
+		shadowInfo.GWData.bHairRenderProjection = true;
 		shadowInfo.RenderProjection(RHICmdList, ViewIndex, &View);
-		shadowInfo.bHairRenderProjection = false;
+		shadowInfo.GWData.bHairRenderProjection = false;
 
-		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.HairDepthZ);
-		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
+		GSceneRenderTargets.SceneDepthZ.Swap(GSceneRenderTargets.GWData.HairDepthZ);
+		GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.GWData.HairLightAttenuation);
 		GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList);
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}

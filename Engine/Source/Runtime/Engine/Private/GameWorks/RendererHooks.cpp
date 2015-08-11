@@ -16,7 +16,7 @@ void FRendererHooks::OnRenderVelocitiesInnner(const FViewInfo &View)
 	}
 }
 
-void FRendererHooks::OnRenderBasePassView(const FViewInfo &View)
+void FRendererHooks::OnRenderBasePassView(FViewInfo &View)
 {
 	for (auto callback : RenderBasePassViewCallbacks.getCallbacks())
 	{
@@ -32,7 +32,7 @@ void FRendererHooks::OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandL
 	}
 }
 
-void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
+void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
 {
 	for (auto callback : RenderProjectedShadowDepthDynamicCallbacks.getCallbacks())
 	{
@@ -40,7 +40,7 @@ void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, 
 	}
 }
 
-void FRendererHooks::OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives)
+void FRendererHooks::OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives)
 {
 	for (auto callback : RenderProjectedShadowPreShadowCallbacks.getCallbacks())
 	{
@@ -57,7 +57,7 @@ void FRendererHooks::OnProjectedShadowRenderProjection(const FProjectedShadowInf
 	}
 }
 
-void FRendererHooks::OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandList& RHICmdList)
+void FRendererHooks::OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList)
 {
 	for (auto callback : RenderProjectedShadowRenderProjectionEndCallbacks.getCallbacks())
 	{

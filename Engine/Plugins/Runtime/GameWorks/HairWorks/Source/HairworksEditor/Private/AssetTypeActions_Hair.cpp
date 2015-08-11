@@ -1,4 +1,6 @@
-#include "HairworksPCH.h"
+#include "HairworksEditorPCH.h"
+
+#include "Hair.h"
 
 
 UClass* FAssetTypeActions_Hair::GetSupportedClass() const

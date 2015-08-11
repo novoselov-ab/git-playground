@@ -8,7 +8,7 @@ struct FVector;
 struct FLinearColor;
 class FProjectedShadowInfo;
 
-typedef TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitiveArrayType;
+//typedef TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitiveArrayType;
 
 /*
 	This class is called by UE4s rendering layer in multiple places, to allow the GW plugins to do their rendering where they need to without impacting UE4 with a lot of pasted in code.
@@ -34,15 +34,15 @@ public:
 	void OnTranslucentViewRender(const FViewInfo &View);
 	void OnRenderVelocitiesInnner(const FViewInfo &View);
 
-	void OnRenderBasePassView(const FViewInfo &View);
+	void OnRenderBasePassView(FViewInfo &View);
 	void OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandList &RHICmdList);
 	
 	// TODO: Make this interface more consistent.
-	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, PrimitiveArrayType SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
+	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
-	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, PrimitiveArrayType &ReceiverPrimitives);
+	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives);
 	void OnProjectedShadowRenderProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
-	void OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandList& RHICmdList);
+	void OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList);
 
 	// JDM: This is really hacky - figure out a way to remove this.
 	void OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed);
@@ -55,16 +55,16 @@ public:
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> TranslucentViewRenderCallbacks;
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderVelocitiesInnerCallbacks;
 
-	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderBasePassViewCallbacks;
+	FSortedCallbackList<std::function<void(FViewInfo&)>> RenderBasePassViewCallbacks;
 	
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> RenderBasePassDynamicCallbacks;
 
-	FSortedCallbackList<std::function<void(const FViewInfo*, PrimitiveArrayType, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
+	FSortedCallbackList<std::function<void(const FViewInfo*, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator>, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
 
-	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, PrimitiveArrayType &) >> RenderProjectedShadowPreShadowCallbacks;
+	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &) >> RenderProjectedShadowPreShadowCallbacks;
 	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, FRHICommandList&)>> RenderProjectedShadowRenderProjectionCallbacks;
 
-	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, int32 ViewIndex, FRHICommandList&)>> RenderProjectedShadowRenderProjectionEndCallbacks;
+	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, int32 ViewIndex, FRHICommandListImmediate&)>> RenderProjectedShadowRenderProjectionEndCallbacks;
 
 	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
 
