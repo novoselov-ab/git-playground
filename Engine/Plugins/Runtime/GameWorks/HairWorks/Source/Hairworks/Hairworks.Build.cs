@@ -36,13 +36,13 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
-            PublicDependencyModuleNames.AddRange(
-                new string[] 
-                {
-					"RenderCore",
-					"Renderer"
-                }
-            );
+//             PublicDependencyModuleNames.AddRange(
+//                 new string[] 
+//                 {
+// 					"RenderCore",
+// 					"Renderer"
+//                 }
+//             );
 
 // 		    PrivateIncludePathModuleNames.AddRange(
 // 			    new string[] {

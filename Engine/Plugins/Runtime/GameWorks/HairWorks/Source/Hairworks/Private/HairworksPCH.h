@@ -7,8 +7,6 @@
 #pragma warning(pop)
 #include "HideWindowsPlatformTypes.h"
 
-DECLARE_LOG_CATEGORY_EXTERN(LogHairWorks, Verbose, All);
-
 #include "Hair.h"
 #include "HairComponent.h"
 #include "HairSceneProxy.h"
