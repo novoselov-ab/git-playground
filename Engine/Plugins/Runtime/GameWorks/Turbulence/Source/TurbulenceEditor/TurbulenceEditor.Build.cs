@@ -25,13 +25,10 @@ namespace UnrealBuildTool.Rules
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
+                    "Turbulence",
 					"Core",
 					"CoreUObject",
 					"Engine",
-					"RHI",
-					"RenderCore",
-					"Renderer",
-					"ShaderCore",
      				"UnrealEd",
  				    "AssetTools",
  				    "ContentBrowser",

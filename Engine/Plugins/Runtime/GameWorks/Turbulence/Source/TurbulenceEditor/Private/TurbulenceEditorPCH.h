@@ -8,4 +8,28 @@
 #include "AssetTypeActions/AssetTypeActions_VelocitySourceAsset.h"
 #include "AssetTypeActions/AssetTypeActions_VortexAsset.h"
 
+#include "AssetFactories/AttractorAssetFactory.h"
+#include "AssetFactories/GridAssetFactory.h"
+#include "AssetFactories/HeatSourceAssetFactory.h"
+#include "AssetFactories/JetAssetFactory.h"
+#include "AssetFactories/NoiseAssetFactory.h"
+#include "AssetFactories/VelocitySourceAssetFactory.h"
+#include "AssetFactories/VortexAssetFactory.h"
+
+#include "ActorFactories/ActorFactoryAttractorActor.h"
+#include "ActorFactories/ActorFactoryGridActor.h"
+#include "ActorFactories/ActorFactoryHeatSourceActor.h"
+#include "ActorFactories/ActorFactoryJetActor.h"
+#include "ActorFactories/ActorFactoryNoiseActor.h"
+#include "ActorFactories/ActorFactoryVelocitySourceActor.h"
+#include "ActorFactories/ActorFactoryVortexActor.h"
+
+#include "ComponentVisualizers/AttractorComponentVisualizer.h"
+#include "ComponentVisualizers/GridComponentVisualizer.h"
+#include "ComponentVisualizers/HeatSourceComponentVisualizer.h"
+#include "ComponentVisualizers/JetComponentVisualizer.h"
+#include "ComponentVisualizers/NoiseComponentVisualizer.h"
+#include "ComponentVisualizers/VelocitySourceComponentVisualizer.h"
+#include "ComponentVisualizers/VortexComponentVisualizer.h"
+
 #include "TurbulenceEditorModule.h"

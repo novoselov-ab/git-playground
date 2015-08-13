@@ -1,6 +1,6 @@
 // NVCHANGE_BEGIN: JCAO - Using Component Visualizer to display the field sampler component
 
-#include "ComponentVisualizersPrivatePCH.h"
+#include "TurbulenceEditorPCH.h"
 
 #include "AttractorComponentVisualizer.h"
 
