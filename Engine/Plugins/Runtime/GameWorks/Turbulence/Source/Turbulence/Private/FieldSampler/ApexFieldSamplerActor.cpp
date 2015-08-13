@@ -1,6 +1,6 @@
 // NVCHANGE_BEGIN: JCAO - 
 
-#include "EnginePrivate.h"
+#include "TurbulencePCH.h"
 #include "ApexFieldSamplerActor.h"
 #include "ApexFieldSamplerAsset.h"
 #include "PhysicsPublic.h"

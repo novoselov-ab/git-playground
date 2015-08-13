@@ -4,7 +4,7 @@
 	TurbulenceFS.cpp: TurbulenceFS instance
 ==============================================================================*/
 
-#include "EnginePrivate.h"
+#include "TurbulencePCH.h"
 #include "TurbulenceFS.h"
 
 void FTurbulenceFSInstance::UpdateTransforms(const FMatrix& LocalToWorld)

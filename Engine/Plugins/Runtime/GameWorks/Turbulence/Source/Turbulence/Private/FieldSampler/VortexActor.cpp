@@ -5,7 +5,7 @@
 =============================================================================*/
 
 
-#include "EnginePrivate.h"
+#include "TurbulencePCH.h"
 #include "../PhysicsEngine/PhysXSupport.h"
 
 

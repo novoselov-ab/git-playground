@@ -1,6 +1,6 @@
 // NVCHANGE_BEGIN: JCAO - Add Field Sampler Asset
 
-#include "EnginePrivate.h"
+#include "TurbulencePCH.h"
 #include "../PhysicsEngine/PhysXSupport.h"
 #include "ApexFieldSamplerAsset.h"
 
