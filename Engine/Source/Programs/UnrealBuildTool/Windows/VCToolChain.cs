@@ -94,11 +94,11 @@ namespace UnrealBuildTool
 			// NOTE: Uncommenting this line will print includes as they are encountered by the preprocessor.  This can help with diagnosing include order problems.
 			if( WindowsPlatform.bCompileWithClang && !WindowsPlatform.bUseVCCompilerArgs )
 			{ 
-				// Arguments.Append( " -H" );
+				//Arguments.Append( " -H" );
 			}
 			else
 			{
-				// Arguments.Append( " /showIncludes" );
+				//Arguments.Append( " /showIncludes" );
 			}
 
 			if( WindowsPlatform.bCompileWithClang )

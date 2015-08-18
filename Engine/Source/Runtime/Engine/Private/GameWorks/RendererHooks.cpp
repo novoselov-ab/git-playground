@@ -65,6 +65,14 @@ void FRendererHooks::OnProjectedShadowRenderProjectionEnd(const FProjectedShadow
 	}
 }
 
+void FRendererHooks::OnAfterRenderProjection(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList)
+{
+	for (auto callback : AfterRenderProjectionCallbacks.getCallbacks())
+	{
+		callback->getCallback()(ShadowInfo, View, ViewIndex, RHICmdList);
+	}
+}
+
 void FRendererHooks::OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed)
 {
 	for (auto callback : SetHairLightCallbacks.getCallbacks())

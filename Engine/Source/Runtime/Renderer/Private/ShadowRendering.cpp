@@ -2775,6 +2775,10 @@ void FDeferredShadingSceneRenderer::RenderProjections(
 				{
 					ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View);
 
+// #ifdef GWGLUE
+					FRendererHooks::get().OnAfterRenderProjection(*ProjectedShadowInfo, View, ViewIndex, RHICmdList);
+// #endif
+
 					GRenderTargetPool.VisualizeTexture.SetCheckPoint(RHICmdList, GSceneRenderTargets.GetLightAttenuation());
 				}
 			}
