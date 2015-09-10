@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Engine.h"
+
 #include "AllowWindowsPlatformTypes.h"
 #pragma warning(push)
 #pragma warning(disable: 4191)	// For DLL function pointer conversion
