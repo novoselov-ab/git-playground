@@ -9,6 +9,8 @@
 #pragma warning(pop)
 #include "HideWindowsPlatformTypes.h"
 
+DECLARE_LOG_CATEGORY_EXTERN(LogHairWorksEditor, Verbose, All);
+
 #include "HairworksEditorModule.h"
 #include "AssetTypeActions_Hair.h"
 #include "HairFactory.h"

@@ -292,6 +292,9 @@ class FShadowStaticMeshElement;
  */
 struct FShadowDepthDrawingPolicyContext : FMeshDrawingPolicy::ContextDataType
 {
+	/** CAUTION, this is assumed to be a POD type. We allocate the on the scene allocator and NEVER CALL A DESTRUCTOR.
+		If you want to add non-pod data, not a huge problem, we just need to track and destruct them at the end of the scene.
+	**/
 	/** The projected shadow info for which we are rendering shadow depths. */
 	const FProjectedShadowInfo* ShadowInfo;
 
@@ -373,6 +376,7 @@ public:
 		const FMeshBatch& Mesh,
 		int32 BatchElementIndex,
 		bool bBackFace,
+		float DitheredLODTransitionValue,
 		const ElementDataType& ElementData,
 		const ContextDataType PolicyContext
 		) const;
@@ -488,6 +492,18 @@ public:
 	const FMaterial* MaterialResource;
 	const FStaticMesh* Mesh;
 	bool bIsTwoSided;
+};
+
+enum EShadowDepthRenderMode
+{
+	/** The render mode used by regular shadows */
+	ShadowDepthRenderMode_Dynamic,
+
+	/** The render mode used when injecting emissive-only objects into the RSM. */
+	ShadowDepthRenderMode_EmissiveOnly,
+
+	/** The render mode used when rendering volumes which block global illumination. */
+	ShadowDepthRenderMode_GIBlockingVolumes,
 };
 
 /**
@@ -637,10 +653,10 @@ public:
 	/**
 	 * Renders the shadow subject depth.
 	 */
-	void RenderDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, TFunctionRef<void (FRHICommandList& RHICmdList)> SetShadowRenderTargets);
+	void RenderDepth(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, TFunctionRef<void (FRHICommandList& RHICmdList)> SetShadowRenderTargets, EShadowDepthRenderMode RenderMode = ShadowDepthRenderMode_Dynamic);
 
 	/** Set state for depth rendering */
-	void SetStateForDepth(FRHICommandList& RHICmdList);
+	void SetStateForDepth(FRHICommandList& RHICmdList, EShadowDepthRenderMode RenderMode );
 
 	void ClearDepth(FRHICommandList& RHICmdList, class FDeferredShadingSceneRenderer* SceneRenderer, bool bPerformClear);
 
@@ -650,7 +666,7 @@ public:
 	/**
 	 * Projects the shadow onto the scene for a particular view.
 	 */
-	RENDERER_API void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View) const;
+	RENDERER_API void RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, bool bForwardShading) const;
 
 	/** Renders ray traced distance field shadows. */
 	void RenderRayTracedDistanceFieldProjection(FRHICommandListImmediate& RHICmdList, const class FViewInfo& View) const;
@@ -750,6 +766,16 @@ private:
 	/** Subject primitives with translucent relevance. */
 	PrimitiveArrayType SubjectTranslucentPrimitives;
 
+	/** Translucent LPV injection: dynamic shadow casting elements */
+	PrimitiveArrayType EmissiveOnlyPrimitives;
+	/** Translucent LPV injection: Static shadow casting elements. */
+	TArray<FShadowStaticMeshElement,SceneRenderingAllocator> EmissiveOnlyMeshElements;
+
+	/** GI blocking volume: dynamic shadow casting elements */
+	PrimitiveArrayType GIBlockingPrimitives;
+	/** GI blocking volume: Static shadow casting elements. */
+	TArray<FShadowStaticMeshElement,SceneRenderingAllocator> GIBlockingMeshElements;
+
 	/** Static shadow casting elements. */
 	TArray<FShadowStaticMeshElement,SceneRenderingAllocator> SubjectMeshElements;
 
@@ -769,7 +795,17 @@ private:
 	/**
 	* Renders the shadow subject depth, to a particular hacked view
 	*/
-	void RenderDepthInner(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, const FViewInfo* FoundView, TFunctionRef<void (FRHICommandList& RHICmdList)> SetShadowRenderTargets);
+	void RenderDepthInner(FRHICommandList& RHICmdList, class FSceneRenderer* SceneRenderer, const FViewInfo* FoundView, TFunctionRef<void (FRHICommandList& RHICmdList)> SetShadowRenderTargets, EShadowDepthRenderMode RenderMode );
+
+	/**
+	* Modifies the passed in view for this shadow
+	*/
+	void ModifyViewForShadow(FRHICommandList& RHICmdList, FViewInfo* FoundView);
+
+	/**
+	* Finds a relevant view for a shadow
+	*/
+	FViewInfo* FindViewForShadow(FSceneRenderer* SceneRenderer);
 
 	/**
 	* Renders the dynamic shadow subject depth, to a particular hacked view
@@ -1072,7 +1108,7 @@ public:
 				FVector4(ShadowBufferSizeValue.X, ShadowBufferSizeValue.Y, 1.0f / ShadowBufferSizeValue.X, 1.0f / ShadowBufferSizeValue.Y));
 		}
 
-		FTexture2DRHIRef ShadowDepthTextureValue = GSceneRenderTargets.GetShadowDepthZTexture(ShadowInfo->bAllocatedInPreshadowCache);
+		FTexture2DRHIRef ShadowDepthTextureValue = FSceneRenderTargets::Get(RHICmdList).GetShadowDepthZTexture(ShadowInfo->bAllocatedInPreshadowCache);
 		FSamplerStateRHIParamRef DepthSamplerState = TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI();
 
 		SetTextureParameter(RHICmdList, ShaderRHI, ShadowDepthTexture, ShadowDepthTextureSampler, DepthSamplerState, ShadowDepthTextureValue);		
@@ -1209,6 +1245,58 @@ protected:
 	FShaderParameter ShadowSharpen;
 };
 
+/** Pixel shader to project modulated shadows onto the scene. */
+template<uint32 Quality>
+class TModulatedShadowProjection : public TShadowProjectionPS<Quality>
+{
+	DECLARE_SHADER_TYPE(TModulatedShadowProjection, Global);
+public:
+
+	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		TShadowProjectionPS<Quality>::ModifyCompilationEnvironment(Platform, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("MODULATED_SHADOWS"), 1);
+	}
+
+	static bool ShouldCache(EShaderPlatform Platform)
+	{
+		return IsMobilePlatform(Platform);
+	}
+
+	TModulatedShadowProjection() {}
+
+	TModulatedShadowProjection(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		TShadowProjectionPS<Quality>(Initializer)
+	{
+		ModulatedShadowColorParameter.Bind(Initializer.ParameterMap, TEXT("ModulatedShadowColor"));
+	}
+
+	virtual void SetParameters(
+		FRHICommandList& RHICmdList,
+		int32 ViewIndex,
+		const FSceneView& View,
+		const FProjectedShadowInfo* ShadowInfo) override
+	{
+		TShadowProjectionPS<Quality>::SetParameters(RHICmdList, ViewIndex, View, ShadowInfo);
+		const FPixelShaderRHIParamRef ShaderRHI = this->GetPixelShader();
+		SetShaderValue(RHICmdList, ShaderRHI, ModulatedShadowColorParameter, ShadowInfo->GetLightSceneInfo().Proxy->GetModulatedShadowColor());
+	}
+
+	/**
+	* Serialize the parameters for this shader
+	* @param Ar - archive to serialize to
+	*/
+	virtual bool Serialize(FArchive& Ar) override
+	{
+		bool bShaderHasOutdatedParameters = TShadowProjectionPS<Quality>::Serialize(Ar);
+		Ar << ModulatedShadowColorParameter;
+		return bShaderHasOutdatedParameters;
+	}
+
+protected:
+	FShaderParameter ModulatedShadowColorParameter;
+};
+
 /** Translucency shadow projection parameters used by multiple shaders. */
 class FTranslucencyShadowProjectionShaderParameters
 {
@@ -1224,13 +1312,14 @@ public:
 
 	void Set(FRHICommandList& RHICmdList, FShader* Shader) const
 	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 		SetTextureParameter(
 			RHICmdList, 
 			Shader->GetPixelShader(),
 			TranslucencyShadowTransmission0,
 			TranslucencyShadowTransmission0Sampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSceneRenderTargets.TranslucencyShadowTransmission[0]->GetRenderTargetItem().ShaderResourceTexture
+			SceneContext.TranslucencyShadowTransmission[0]->GetRenderTargetItem().ShaderResourceTexture
 			);
 
 		SetTextureParameter(
@@ -1239,7 +1328,7 @@ public:
 			TranslucencyShadowTransmission1,
 			TranslucencyShadowTransmission1Sampler,
 			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			GSceneRenderTargets.TranslucencyShadowTransmission[1]->GetRenderTargetItem().ShaderResourceTexture
+			SceneContext.TranslucencyShadowTransmission[1]->GetRenderTargetItem().ShaderResourceTexture
 			);
 	}
 
@@ -1334,7 +1423,7 @@ public:
 			RHICmdList, 
 			ShaderRHI, 
 			ShadowDepthTexture, 
-			GSceneRenderTargets.GetCubeShadowDepthZTexture(ShadowInfo->ResolutionX)
+			FSceneRenderTargets::Get(RHICmdList).GetCubeShadowDepthZTexture(ShadowInfo->ResolutionX)
 			);
 
 		if (ShadowDepthCubeComparisonSampler.IsBound())

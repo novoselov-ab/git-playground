@@ -16,7 +16,9 @@
 #pragma warning(pop)
 #include "HideWindowsPlatformTypes.h"
 
-#include "../../../../Shaders/GFSDK_HairWorks_ShaderCommon.usf"
+#include "GFSDK_Types.h"
+
+//#include "../../../../Shaders/GFSDK_HairWorks_ShaderCommon.usf"
 
 // Pixel shaders
 class FHairWorksPs : public FGlobalShader
@@ -28,8 +30,6 @@ public:
 	FHairWorksPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
 
 	virtual bool Serialize(FArchive& Ar);
-
-	FVector fuckyou;
 
 	void SetParameters(FRHICommandListImmediate& RHICmdList, const FSceneView& View, const GFSDK_Hair_ConstantBuffer& HairConstBuffer, const TArray<FTexture2DRHIRef>& HairTextures, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3]);//const FTextureRHIParamRef LightCache[3], const FVector LightCatcheAlloc[4]
 

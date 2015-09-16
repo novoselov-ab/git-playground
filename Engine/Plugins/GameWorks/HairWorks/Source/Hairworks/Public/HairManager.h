@@ -11,10 +11,13 @@ public:
 
 
 	void ReleaseHair_GameThread(GFSDK_HairAssetID AssetId);
+
+	bool GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair);
 	bool GetHairInfo_GameThread(GFSDK_HairInstanceDescriptor& HairDescriptor, TMap<FName, int32>& BoneToIdxMap, const UHair& Hair);
+
 	bool IsHair_GameThread(const void* AssetData, unsigned DataSize);
 
-	void RenderTranslucency(const FViewInfo &View);
+	void RenderTranslucency(const FViewInfo &View, FRHICommandList& RHICmdList);
 	void RenderBaseView(FViewInfo &View);
 	void RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList);
 	void SetHairLightSettings(FVector InDirection, FLinearColor InColor, bool InShadow);
@@ -37,7 +40,10 @@ public:
 
 	void StepSimulation();
 
+#if WITH_EDITOR
+	// Used for injection of console variables.
 	void UpdateHairInstanceDescriptor(GFSDK_HairInstanceID InstanceId, GFSDK_HairInstanceDescriptor& HairDesc);
+#endif
 	void UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives);
 
 	GFSDK_HairSDK* GetHairworksSdk() { return HairWorksSdk; }

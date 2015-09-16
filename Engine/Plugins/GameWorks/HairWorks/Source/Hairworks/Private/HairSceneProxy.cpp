@@ -10,10 +10,13 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "HairShaders.h"
 
-FHairSceneProxy::FHairSceneProxy(const UPrimitiveComponent* InComponent, UHair* InHair)
-	:FPrimitiveSceneProxy(InComponent)
-	, Hair(InHair)
+
+FHairSceneProxy::FHairSceneProxy(const UPrimitiveComponent* InComponent, GFSDK_HairAssetID InAssetId):
+FPrimitiveSceneProxy(InComponent),
+AssetId(InAssetId),
+HairInstanceId(GFSDK_HairInstanceID_NULL)
 {
+
 }
 
 FHairSceneProxy::~FHairSceneProxy()
@@ -30,13 +33,12 @@ uint32 FHairSceneProxy::GetMemoryFootprint(void) const
 	return 0;
 }
 
-
 // JDM: TODO: Call this less. It seems like it doesn't do anything after the first time anyway. Investigate more.
 void FHairSceneProxy::UpdateShaderCache()
 {
 	GFSDK_HairShaderCacheSettings ShaderCacheSetting;
-	ShaderCacheSetting.SetFromInstanceDescriptor(HairDesc);
-	HairTextures.SetNum(GFSDK_HAIR_NUM_TEXTURES, false);
+	ShaderCacheSetting.SetFromInstanceDescriptor(CachedHairDescriptor);
+
 	for (int i = 0; i < GFSDK_HAIR_NUM_TEXTURES; i++)
 	{
 		ShaderCacheSetting.isTextureUsed[i] = HairTextures[i] != nullptr;
@@ -50,13 +52,20 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
-	//UE_LOG(LogHairWorks, Log, TEXT("DrawTranslucency"));
+	// Update parameters
+	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	CachedHairDescriptor.m_useViewfrustrumCulling = false;
 
-	// Simulate.
-	GHairManager->StepSimulation();
+#if WITH_EDITOR
+
+	// Take a copy since the CVars are going to mess with it.
+	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
 
 	// Pass rendering parameters
 	GHairManager->UpdateHairInstanceDescriptor(HairInstanceId, HairDesc);
+#else
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+#endif
 
 	// Set states
 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
@@ -103,9 +112,6 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	// To update shader states
 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
 
-	// Handle shader cache.
-	UpdateShaderCache();
-
 	// Draw
 	GFSDK_HairShaderSettings HairShaderSettings;
 	HairShaderSettings.m_useCustomConstantBuffer = true;
@@ -124,28 +130,22 @@ void FHairSceneProxy::DrawShadow(const FViewMatrices& ViewMatrices, float DepthB
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
-	//UE_LOG(LogHairWorks, Log, TEXT("DrawShadow"));
-
-	// Simulate
-	GHairManager->StepSimulation();
-
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
-	
-	// Pass rendering parameters
-	HairDesc.m_castShadows = true;
 
-	const auto bOrgUseBackFaceCulling = HairDesc.m_useBackfaceCulling;
-	const auto OrgHairWidth = HairDesc.m_width;
+	// JDM: GROSS! - GET RID OF THIS. Need another member in the config that encapsulates this, since the shader already knows it's a shadow render.
+	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
+
 	HairDesc.m_width *= GHairManager->CVarHairShadowWidthScale.GetValueOnRenderThread();
 	HairDesc.m_useBackfaceCulling = false;
 
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);
+	// Update parameters
+	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	HairDesc.m_useViewfrustrumCulling = false;
 
-	// Revert parameters
-	HairDesc.m_width = OrgHairWidth;
-	HairDesc.m_useBackfaceCulling = bOrgUseBackFaceCulling;
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
 
 
+	
 	// Pass camera inforamtin
 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
 
@@ -180,10 +180,13 @@ void FHairSceneProxy::DrawBasePass(const FSceneView& View)
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
-	//UE_LOG(LogHairWorks, Log, TEXT("DrawBasePass"));
+	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+	
+	// Update parameters
+	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	CachedHairDescriptor.m_useViewfrustrumCulling = false;
 
-	// Simulate
-	GHairManager->StepSimulation();
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
 
 	// Pass camera inforamtin
 	auto ViewMatrices = View.ViewMatrices;
@@ -195,7 +198,6 @@ void FHairSceneProxy::DrawBasePass(const FSceneView& View)
 		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
 	}
 
-	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
 
@@ -211,9 +213,6 @@ void FHairSceneProxy::DrawBasePass(const FSceneView& View)
 	static FGlobalBoundShaderState BoundShaderState;
 	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
 		*VertexShader, *PixelShader);
-
-	// Handle shader cache.
-	UpdateShaderCache();
 
 	// Draw
 	GFSDK_HairShaderSettings HairShaderSettings;
@@ -234,13 +233,14 @@ void FHairSceneProxy::DrawVelocity(const FSceneView& View, const FViewMatrices& 
 	if(HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
-//	UE_LOG(LogHairWorks, Log, TEXT("DrawVelocity"));
-
-
-	// Simulate
-	GHairManager->StepSimulation();
-
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+
+	// Update parameters
+	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	CachedHairDescriptor.m_useViewfrustrumCulling = false;
+
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+
 
 	// Pass camera inforamtin
 	const auto& ViewMatrices = View.ViewMatrices;
@@ -268,9 +268,6 @@ void FHairSceneProxy::DrawVelocity(const FSceneView& View, const FViewMatrices& 
 	// To update shader states
 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
 
-	// Handle shader cache.
-	UpdateShaderCache();
-
 	// Draw
 	GFSDK_HairShaderSettings HairShaderSettings;
 	HairShaderSettings.m_useCustomConstantBuffer = true;
@@ -292,30 +289,17 @@ void FHairSceneProxy::CreateRenderThreadResources()
 {
 	FPrimitiveSceneProxy::CreateRenderThreadResources();
 
-	// JDM: Do not do this in the render thread unless we have to!
-	// JDM: This is pretty heavy! Shouldn't be here. Reuse this data from somewhere else.
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
 	check(HairWorksSdk);
 
 	UE_LOG(LogHairWorks, Log, TEXT("CreateRenderThreadResources"));
 
-	// Initialize Hair asset and instance
-	if (Hair->AssetId == GFSDK_HairAssetID_NULL)
-	{
-		GFSDK_HairConversionSettings LoadSettings;
-		LoadSettings.m_targetHandednessHint = GFSDK_HAIR_HANDEDNESS_HINT::GFSDK_HAIR_LEFT_HANDED;
-		LoadSettings.m_targetUpAxisHint = GFSDK_HAIR_UP_AXIS_HINT::GFSDK_HAIR_Z_UP;
-		HairWorksSdk->LoadHairAssetFromMemory(Hair->AssetData.GetData(), Hair->AssetData.Num(), &Hair->AssetId, 0, &LoadSettings);
-	}
+	check(AssetId != GFSDK_HairAssetID_NULL);
 
-
-	HairWorksSdk->CreateHairInstance(Hair->AssetId, &HairInstanceId);
+	HairWorksSdk->CreateHairInstance(AssetId, &HairInstanceId);
 
 	UE_LOG(LogHairWorks, Log, TEXT("Created new hair instance %d"), static_cast<int32>(HairInstanceId));
-
-	// Get parameters
-	HairWorksSdk->CopyInstanceDescriptorFromAsset(Hair->AssetId, HairDesc);
 }
 
 FPrimitiveViewRelevance FHairSceneProxy::GetViewRelevance(const FSceneView* View)
@@ -359,14 +343,14 @@ void FHairSceneProxy::SetupBoneMapping_RenderThread(const TArray<FMeshBoneInfo>&
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
 	gfsdk_U32 BoneNum = 0;
-	HairWorksSdk->GetNumBones(Hair->AssetId, &BoneNum);
+	HairWorksSdk->GetNumBones(AssetId, &BoneNum);
 
 	BoneMapping.SetNumUninitialized(BoneNum);
 
 	for (auto Idx = 0; Idx < BoneMapping.Num(); ++Idx)
 	{
 		gfsdk_char BoneName[GFSDK_HAIR_MAX_STRING];
-		HairWorksSdk->GetBoneName(Hair->AssetId, Idx, BoneName);
+		HairWorksSdk->GetBoneName(AssetId, Idx, BoneName);
 
 		BoneMapping[Idx] = Bones.IndexOfByPredicate([&](const FMeshBoneInfo& BoneInfo){return BoneInfo.Name == BoneName; });
 	}
@@ -398,8 +382,7 @@ void FHairSceneProxy::UpdateBones_RenderThread(const TArray<FMatrix>& RefMatrice
 		return;
 
 	// Setup bones
-	FMemMark MemMark(FMemStack::Get());
-	TArray<FMatrix, TMemStackAllocator<>> BoneMatrices;
+	TArray<FMatrix> BoneMatrices;
 	
 	BoneMatrices.SetNumUninitialized(BoneMapping.Num());
 
@@ -415,43 +398,34 @@ void FHairSceneProxy::UpdateBones_RenderThread(const TArray<FMatrix>& RefMatrice
 	HairWorksSdk->UpdateSkinningMatrices(HairInstanceId, BoneMatrices.Num(), (gfsdk_float4x4*)BoneMatrices.GetData());
 }
 
-void FHairSceneProxy::UpdateHairParams_GameThread(const GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& HairTextures)
-{
-	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
-		HairUpdateParams,
-		FHairSceneProxy&, ThisProxy, *this,
-		GFSDK_HairInstanceDescriptor, HairDesc, HairDesc,
-		const TArray<FTexture2DRHIRef>, HairTextures, HairTextures,
-		{
-			ThisProxy.UpdateHairParams_RenderThread(HairDesc, HairTextures);
-		}
-		);
-}
-
-void FHairSceneProxy::UpdateHairParams_RenderThread(const GFSDK_HairInstanceDescriptor& InHairDesc, const TArray<FTexture2DRHIRef>& InHairTextures)
+void FHairSceneProxy::UpdateHairParams(GFSDK_HairInstanceDescriptor& InHairDesc, const TArray<FTexture2DRHIRef>& InHairTextures)
 {
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
+	// Take a local copy of these
+	CachedHairDescriptor = InHairDesc;
+	HairTextures = InHairTextures;
+
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
 	// Update parameters
-	HairDesc = InHairDesc;
-	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
-	HairDesc.m_useViewfrustrumCulling = false;
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
+	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	CachedHairDescriptor.m_useViewfrustrumCulling = false;
+
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
 
 	// Update textures
-	checkSlow(InHairTextures.Num() >= GFSDK_HAIR_NUM_TEXTURES);
-	HairTextures = InHairTextures;
-	HairTextures.SetNum(GFSDK_HAIR_NUM_TEXTURES, false);
+	check(HairTextures.Num() == GFSDK_HAIR_NUM_TEXTURES);
 
 	for (auto Idx = 0; Idx < GFSDK_HAIR_NUM_TEXTURES; ++Idx)
 	{
 		auto TextureRef = HairTextures[Idx];
-		auto* Texture = static_cast<TD3D11Texture2D<FD3D11BaseTexture2D>*>(TextureRef.GetReference());
+		auto Texture = static_cast<TD3D11Texture2D<FD3D11BaseTexture2D>*>(TextureRef.GetReference());
 		HairWorksSdk->SetTextureSRV(HairInstanceId, (GFSDK_HAIR_TEXTURE_TYPE)Idx, Texture ? Texture->GetShaderResourceView() : nullptr);
 	}
+
+	UpdateShaderCache();
 }
 
 

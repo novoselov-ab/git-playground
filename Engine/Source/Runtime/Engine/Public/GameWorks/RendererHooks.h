@@ -31,7 +31,7 @@ public:
 
 
 	// TODO: Better, more generic names!
-	void OnTranslucentViewRender(const FViewInfo &View);
+	void OnTranslucentViewRender(const FViewInfo &View, FRHICommandList&);
 	void OnRenderVelocitiesInnner(const FViewInfo &View);
 
 	void OnRenderBasePassView(FViewInfo &View);
@@ -53,7 +53,7 @@ public:
 	// Subscription methods
 
 	// Callback lists
-	FSortedCallbackList<std::function<void(const FViewInfo&)>> TranslucentViewRenderCallbacks;
+	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> TranslucentViewRenderCallbacks;
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderVelocitiesInnerCallbacks;
 
 	FSortedCallbackList<std::function<void(FViewInfo&)>> RenderBasePassViewCallbacks;

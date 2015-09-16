@@ -1,5 +1,6 @@
 #include "HairworksPCH.h"
 
+//JDM: Convert to singleton, UE4 style.
 FHairManager* GHairManager = nullptr;
 
 IMPLEMENT_MODULE( FHairworksModule, HairWorks );

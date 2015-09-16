@@ -1,22 +1,35 @@
 #pragma once
 
+#include "HairProperties.h"
 #include "Hair.generated.h"
 
-enum GFSDK_HairAssetID;
 
+/*
+	This class represents the hair asset.
+*/
 UCLASS()
 class HAIRWORKS_API UHair : public UObject
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
+public:
 
-	UPROPERTY(EditAnywhere, Category = ImportSettings)
-	FString SourceFilePath;
+	UHair(const FObjectInitializer &ObjectInitializer);
+	virtual ~UHair();
+
+	UPROPERTY()
+	UAssetImportData* AssetImportData;
 	
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Hair)
+	FHairProperties	HairProperties;
+
 	UPROPERTY()
 	TArray<uint8> AssetData;
 
-	~UHair();
+	// Bone names and indices.
+	TMap<FName, int32> HairBoneToIdxMap;
 
-	GFSDK_HairAssetID AssetId = AssetIdNull;
-	static const GFSDK_HairAssetID AssetIdNull;
+	GFSDK_HairAssetID AssetId;
+
+	// Load the hair asset on demand (when a component needs it)
+	bool LoadHairAsset();
 };

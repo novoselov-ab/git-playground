@@ -10,9 +10,9 @@ UClass* FAssetTypeActions_Hair::GetSupportedClass() const
 
 void FAssetTypeActions_Hair::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
 {
-	for (auto& Asset : TypeAssets)
+	for (auto Asset : TypeAssets)
 	{
-		auto* Hair = CastChecked<UHair>(Asset);
-		OutSourceFilePaths.Add(FReimportManager::ResolveImportFilename(Hair->SourceFilePath, Hair));
+		auto Hair = CastChecked<UHair>(Asset);
+		Hair->AssetImportData->ExtractFilenames(OutSourceFilePaths);
 	}
 }

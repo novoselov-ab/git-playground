@@ -1,10 +1,10 @@
 #include "EnginePrivate.h"
 
-void FRendererHooks::OnTranslucentViewRender(const FViewInfo &View)
+void FRendererHooks::OnTranslucentViewRender(const FViewInfo &View, FRHICommandList &RHICmdList)
 {
 	for (auto callback : TranslucentViewRenderCallbacks.getCallbacks())
 	{
-		callback->getCallback()(View);
+		callback->getCallback()(View, RHICmdList);
 	}
 }
 

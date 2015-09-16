@@ -53,8 +53,6 @@ UObject* UHairFactory::FactoryCreateBinary(
 
 	auto Hair = NewObject<UHair>(InParent, Name, Flags);
 
-//	auto* Hair = CastChecked<UHair>(StaticConstructObject(UHair::StaticClass(), InParent, Name, Flags));
-
 	Hair->AssetData.SetNumUninitialized(BufferEnd - Buffer);
 	FMemory::Memcpy(Hair->AssetData.GetData(), Buffer, Hair->AssetData.Num());
 
@@ -63,52 +61,67 @@ UObject* UHairFactory::FactoryCreateBinary(
 
 bool UHairFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	auto* Hair = Cast<UHair>(Obj);
-	if (!Hair)
-		return false;
-
-	if (!Hair->SourceFilePath.IsEmpty())
-		OutFilenames.Add(Hair->SourceFilePath);
-
-	return true;
+	auto Hair = Cast<UHair>(Obj);
+	if (Hair && Hair->AssetImportData)
+	{
+		Hair->AssetImportData->ExtractFilenames(OutFilenames);
+		return true;
+	}
+	return false;
 }
 
 void UHairFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
-	auto* Hair = Cast<UHair>(Obj);
+	auto Hair = Cast<UHair>(Obj);
 	if (Hair && ensure(NewReimportPaths.Num() == 1))
 	{
-		Hair->SourceFilePath = FReimportManager::SanitizeImportFilename(NewReimportPaths[0], Obj);
+		Hair->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
 	}
 }
 
 EReimportResult::Type UHairFactory::Reimport(UObject* Obj)
 {
 	// Validate asset file.
-	auto* Hair = Cast<UHair>(Obj);
+	auto Hair = Cast<UHair>(Obj);
 	if (!Hair)
+	{
+		UE_LOG(LogHairWorksEditor, Error, TEXT("Failed to import hair asset - Hair is null."));
 		return EReimportResult::Failed;
+	}
+
+	// Make sure file is valid and exists
+	const FString Filename = Hair->AssetImportData->GetFirstFilename();
+	if (!Filename.Len() || IFileManager::Get().FileSize(*Filename) == INDEX_NONE)
+	{
+		return EReimportResult::Failed;
+	}
 
 	TArray<uint8> FileData;
-	FFileHelper::LoadFileToArray(FileData, *Hair->SourceFilePath);
+	if (!FFileHelper::LoadFileToArray(FileData, *Filename))
+	{
+		UE_LOG(LogHairWorksEditor, Error, TEXT("Failed to import hair asset from file %s - IO error"), *Filename);
+		return EReimportResult::Failed;
+	}
 
 	if (!GHairManager->IsHair_GameThread(FileData.GetData(), FileData.Num()))
+	{
+		UE_LOG(LogHairWorksEditor, Error, TEXT("Failed to import hair asset from file %s - Not a hair asset."), *Filename);
 		return EReimportResult::Failed;
-
-	// Finish render thread work.
-	FlushRenderingCommands();
+	}
 
 	// Load asset
 	Hair->AssetData = FileData;
-	Hair->AssetId = UHair::AssetIdNull;
+
+	GHairManager->GetHairInfo(Hair->HairBoneToIdxMap, Hair);
 
 	// Notify components the change.
 	for (TObjectIterator<UHairComponent> It; It; ++It)
 	{
-		if (It->Hair != Hair)
-			continue;
-
-		It->RecreateRenderState_Concurrent();
+		if (It->Hair == Hair)
+		{
+			It->HairProperties = Hair->HairProperties;
+			It->RecreateRenderState_Concurrent();
+		}
 	}
 
 	// Mark package dirty.

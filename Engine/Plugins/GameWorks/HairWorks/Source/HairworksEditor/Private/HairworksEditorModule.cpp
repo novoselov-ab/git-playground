@@ -1,7 +1,7 @@
 #include "HairworksEditorPCH.h"
 
 IMPLEMENT_MODULE( FHairworksEditorModule, HairWorksEditor );
-//DEFINE_LOG_CATEGORY(LogHairWorksEditor);
+DEFINE_LOG_CATEGORY(LogHairWorksEditor);
 
 void FHairworksEditorModule::StartupModule()
 {

@@ -19,5 +19,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogHairWorks, Verbose, All);
 #include "HairManager.h"
 #include "HairworksLogger.h"
 #include "HairShaders.h"
+#include "HairProperties.h"
 
 
