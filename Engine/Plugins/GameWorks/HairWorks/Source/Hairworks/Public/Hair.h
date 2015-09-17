@@ -16,9 +16,6 @@ public:
 	UHair(const FObjectInitializer &ObjectInitializer);
 	virtual ~UHair();
 
-	UPROPERTY()
-	UAssetImportData* AssetImportData;
-	
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Hair)
 	FHairProperties	HairProperties;
 
@@ -32,4 +29,16 @@ public:
 
 	// Load the hair asset on demand (when a component needs it)
 	bool LoadHairAsset();
+
+#if WITH_EDITORONLY_DATA
+	// Import data for this 
+	UPROPERTY(VisibleAnywhere, Instanced, Category = ImportSettings)
+	class UAssetImportData* AssetImportData;
+
+	// UObject interface
+	virtual void PostInitProperties() override;
+	virtual void Serialize(FArchive& Ar) override;
+	// End of UObject interface
+#endif
+
 };

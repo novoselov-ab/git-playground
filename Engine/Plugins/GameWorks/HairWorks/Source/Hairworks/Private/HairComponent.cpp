@@ -24,6 +24,8 @@ UHairComponent::UHairComponent(const class FObjectInitializer& PCIP)
 // 	GFSDK_HairInstanceDescriptor HairDescriptor;
 // 	TArray<FTexture2DRHIRef> HairTextures;
 // 	SyncHairParameters(HairDescriptor, HairTextures, true);
+
+	UE_LOG(LogHairWorks, Log, TEXT("Creating new HairComponent"));
 }
 
 UHairComponent::~UHairComponent()
@@ -35,6 +37,10 @@ FPrimitiveSceneProxy* UHairComponent::CreateSceneProxy()
 	if (!Hair)
 		return nullptr;
 
+	auto owner = this->GetOwner();
+
+	UE_LOG(LogHairWorks, Log, TEXT("HC:CreateSceneProxy for Hair %d, parent %d"), GetUniqueID(), owner->GetUniqueID());
+
 	if (Hair->AssetId == GFSDK_HairAssetID_NULL)
 	{
 		if (!Hair->LoadHairAsset())
@@ -45,7 +51,6 @@ FPrimitiveSceneProxy* UHairComponent::CreateSceneProxy()
 
 	check(Hair->AssetId != GFSDK_HairAssetID_NULL);
 
-	UE_LOG(LogHairWorks, Log, TEXT("HC:CreateSceneProxy"));
 
 	return new FHairSceneProxy(this, Hair->AssetId);
 }
@@ -69,10 +74,13 @@ FBoxSphereBounds UHairComponent::CalcBounds(const FTransform& LocalToWorld) cons
 
 	auto HairProxy = static_cast<FHairSceneProxy*>(SceneProxy);
 
-	FBoxSphereBounds HairBounds(EForceInit::ForceInit);
-	HairProxy->GetHairBounds_GameThread(HairBounds);
+	FBoxSphereBounds HairBounds(EForceInit::ForceInitToZero);
+	if (HairProxy->GetHairBounds_GameThread(HairBounds))
+	{
+		return HairBounds.TransformBy(LocalToWorld);
+	}
 
-	return HairBounds.TransformBy(LocalToWorld);
+	return HairBounds;
 }
 
 static FName Name_Hair = GET_MEMBER_NAME_CHECKED(UHairComponent, Hair);
@@ -140,7 +148,7 @@ void UHairComponent::CreateRenderState_Concurrent()
 	UE_LOG(LogHairWorks, Log, TEXT("HC:CreateRenderState_C"));
 
 	//JDM: Is this required?
-	FlushRenderingCommands();	// Ensure hair is created.
+//	FlushRenderingCommands();	// Ensure hair is created.
 
 	UpdateBounds();
 
@@ -164,7 +172,7 @@ void UHairComponent::SendHairDynamicData()
 		HairSceneProxy->UpdateBones_GameThread(*ParentSkeleton);
 
 	// Send paramters
-	HairSceneProxy->UpdateHairParams(CachedHairDescriptor, HairProperties.GetTextures());
+	HairSceneProxy->UpdateHairParams_GameThread(CachedHairDescriptor, HairProperties.GetTextures());
 }
 
 void UHairComponent::SetupBoneMapping()
@@ -175,6 +183,7 @@ void UHairComponent::SetupBoneMapping()
 
 	//JDM: FIXME - probably doesn't need to happen in the render thread.
 	auto HairSceneProxy = static_cast<FHairSceneProxy*>(SceneProxy);
+//	HairSceneProxy->SetupBoneMapping_RenderThread(ParentSkeleton->SkeletalMesh->RefSkeleton.GetRefBoneInfo());
 	HairSceneProxy->SetupBoneMapping_GameThread(ParentSkeleton->SkeletalMesh->RefSkeleton.GetRefBoneInfo());
 }
 

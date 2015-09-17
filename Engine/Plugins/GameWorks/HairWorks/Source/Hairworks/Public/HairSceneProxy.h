@@ -25,8 +25,6 @@ public:
 	void DrawTranslucency(const FSceneView& View, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3]);
 	void DrawVelocity(const FSceneView& View, const FViewMatrices& PrevViewMatrices);
 
-	// This is called from UHairComponent when something changes in the config, to update the cached copies the proxy has.
-	void UpdateHairParams(GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& InHairTextures);
 
 
 	// This is a cached copy of the hair descriptor that's updated every time HairProperties changes.
@@ -34,7 +32,10 @@ public:
 
 	// Control textures
 	TArray<FTexture2DRHIRef> HairTextures;
+	void UpdateHairParams_GameThread(const GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& HairTextures);
 protected:
+	// This is called from UHairComponent when something changes in the config, to update the cached copies the proxy has.
+	void UpdateHairParams(GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& InHairTextures);
 	void SetupBoneMapping_RenderThread(const TArray<FMeshBoneInfo>& Bones);
 	void UpdateBones_RenderThread(const TArray<FMatrix>& RefMatrices);
 

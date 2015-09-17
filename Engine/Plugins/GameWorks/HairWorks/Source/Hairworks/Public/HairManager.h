@@ -13,7 +13,6 @@ public:
 	void ReleaseHair_GameThread(GFSDK_HairAssetID AssetId);
 
 	bool GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair);
-	bool GetHairInfo_GameThread(GFSDK_HairInstanceDescriptor& HairDescriptor, TMap<FName, int32>& BoneToIdxMap, const UHair& Hair);
 
 	bool IsHair_GameThread(const void* AssetData, unsigned DataSize);
 

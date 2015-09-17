@@ -28,7 +28,7 @@ FHairManager::FHairManager():
 	CVarHairVisualizeGrowthMesh(TEXT("r.Hair.VisualizeGrowthMesh"), 0, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairVisualizeBones(TEXT("r.Hair.VisualizeBones"), 0, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairVisualizeCapsules(TEXT("r.Hair.VisualizeCapsules"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeBoundingBox(TEXT("r.Hair.VisualizeBoundingBox"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizeBoundingBox(TEXT("r.Hair.VisualizeBoundingBox"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairVisualizePinConstraints(TEXT("r.Hair.VisualizePinConstraints"), 0, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairVisualizeShadingNormalBone(TEXT("r.Hair.VisualizeShadingNormalBone"), 0, TEXT(""), ECVF_RenderThreadSafe),
 	HWLogger(MakeUnique<FHairWorksLogger>())
@@ -207,64 +207,7 @@ bool FHairManager::GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair)
 	return true;
 }
 
-bool FHairManager::GetHairInfo_GameThread(GFSDK_HairInstanceDescriptor& HairDescriptor, TMap<FName, int32>& BoneToIdxMap, const UHair& Hair)
-{
-	if (!HairWorksSdk)
-		return false;
 
-	UE_LOG(LogHairWorks, Log, TEXT("HM:GetHairInfo_GT"));
-
-	bool bOk = false;
-
-	ENQUEUE_UNIQUE_RENDER_COMMAND_FOURPARAMETER(
-		GetHairInfo,
-		GFSDK_HairInstanceDescriptor&, HairDescriptor, HairDescriptor,
-		decltype(BoneToIdxMap)&, BoneToIdxMap, BoneToIdxMap,	// Use decltype to avoid compile error.
-		const UHair&, Hair, Hair,
-		bool&, bOk, bOk,
-		{
-			auto HairWorksSdk = GHairManager->GetHairworksSdk();
-
-			// Try to create HairWorks asset
-			auto AssetId = Hair.AssetId;
-			if (AssetId == GFSDK_HairAssetID_NULL)
-			{
-				HairWorksSdk->LoadHairAssetFromMemory(Hair.AssetData.GetData(), Hair.AssetData.Num() * Hair.AssetData.GetTypeSize(), &AssetId);
-			}
-
-			if (AssetId == GFSDK_HairAssetID_NULL)
-				return;
-
-			// Copy descriptor
-			HairWorksSdk->CopyInstanceDescriptorFromAsset(AssetId, HairDescriptor);
-
-			// Copy bones
-			gfsdk_U32 BoneNum = 0;
-			HairWorksSdk->GetNumBones(AssetId, &BoneNum);
-
-			for (gfsdk_U32 BoneIdx = 0; BoneIdx < BoneNum; ++BoneIdx)
-			{
-				gfsdk_char BoneName[GFSDK_HAIR_MAX_STRING];
-				HairWorksSdk->GetBoneName(AssetId, BoneIdx, BoneName);
-
-				BoneToIdxMap.Add(BoneName, BoneIdx);
-			}
-
-			// Release asset
-			if (AssetId != Hair.AssetId)
-				HairWorksSdk->FreeHairAsset(AssetId);
-
-			bOk = true;
-		}
-	);
-
-	// Wait
-	FRenderCommandFence RenderCmdFenc;
-	RenderCmdFenc.BeginFence();
-	RenderCmdFenc.Wait();
-
-	return bOk;
-}
 
 void FHairManager::LoadSDKDll()
 {
@@ -281,11 +224,14 @@ void FHairManager::LoadSDKDll()
 	LibPath += TEXT("32");
 #endif
 
-	LibPath += TEXT(".dll");
+	LibPath += TEXT(".D.dll");
 
 	HairWorksSdk = GFSDK_LoadHairSDK(TCHAR_TO_ANSI(*LibPath), GFSDK_HAIRWORKS_VERSION, nullptr, HWLogger.Get());
 	if (!HairWorksSdk)
+	{
+		UE_LOG(LogHairWorks, Error, TEXT("Failed to load the hairworks DLL at %s"), *LibPath);
 		return;
+	}
 
 	auto& D3d11Rhi = static_cast<FD3D11DynamicRHI&>(*GDynamicRHI);
 	HairWorksSdk->InitRenderResources(D3d11Rhi.GetDevice(), D3d11Rhi.GetDeviceContext());
@@ -306,17 +252,17 @@ void FHairManager::FreeResources()
 
 void FHairManager::RenderBaseView(FViewInfo &View)
 {
+	StepSimulation();
 	for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
 	{
-		auto PrimitiveInfo = View.VisibleDynamicPrimitives[MeshIdx];
-		auto& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
+		const FPrimitiveSceneInfo* PrimitiveInfo = View.VisibleDynamicPrimitives[MeshIdx];
+		FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
 		if (ViewRelevance.GWData.bHair)
 		{
 			View.GWData.bHasHair = true;
 			break;
 		}
 	}
-
 }
 
 void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RHICmdList)
@@ -392,13 +338,13 @@ void FHairManager::RenderBasePassDynamic(const FViewInfo& View, FRHICommandList&
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 		// Write to hair mask buffer and depth buffer.
-		SetRenderTarget(RHICmdList, SceneContext.GWData.HairMask->GetRenderTargetItem().TargetableTexture, SceneContext.GWData.HairDepthZ->GetRenderTargetItem().TargetableTexture, ESimpleRenderTargetMode::EClearColorAndDepth);	// View port is reset here.
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+// 		SetRenderTarget(RHICmdList, SceneContext.GWData.HairMask->GetRenderTargetItem().TargetableTexture, SceneContext.GWData.HairDepthZ->GetRenderTargetItem().TargetableTexture, ESimpleRenderTargetMode::EClearColorAndDepth);	// View port is reset here.
+// 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 // 		DrawPostDepth();
 // 		DrawPostColor();
 
-		SceneContext.BeginRenderingGBuffer(RHICmdList, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ENoAction);
+//		SceneContext.BeginRenderingGBuffer(RHICmdList, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ENoAction);
 	}
 
 }

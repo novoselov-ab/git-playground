@@ -132,7 +132,7 @@ Render each hair instance.
 #define __GFSDK_HAIRWORKS_H__
 
 #include "GFSDK_HairWorks_Common.h"
-#include <D3D11.h>
+#include <d3d11.h>
 
 #define GFSDK_HAIRWORKS_VERSION 111 // internal version number to match runtime DLLs. 
 #define GFSDK_HAIRWORKS_FILE_VERSION_STRING "1.1" // version string for .apx file format
@@ -1423,6 +1423,13 @@ public:
 		const gfsdk_float4x4*		proj, 
 		GFSDK_HAIR_HANDEDNESS_HINT	handedness = GFSDK_HAIR_RIGHT_HANDED,
 		float						FOV = 70.0f
+		) = 0;
+
+	virtual GFSDK_HAIR_RETURNCODES SetViewProjectionForCubeMap(
+		const gfsdk_float4x4 view[6], 
+		const gfsdk_float4x4 proj[6], 
+		const bool visible[6],
+		GFSDK_HAIR_HANDEDNESS_HINT	handedness = GFSDK_HAIR_RIGHT_HANDED
 		) = 0;
 
 	/**

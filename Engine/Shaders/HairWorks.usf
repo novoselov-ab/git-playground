@@ -83,7 +83,7 @@ MainOut Main(GFSDK_Hair_PixelShaderInput input)
 
 	specular *= lerp(1.0, glint, HairConstantBuffer.defaultMaterial.glintStrength);
 
-	float4 lightAttenuation = Square(LightAttenuationTexture.Sample(TextureSampler, (input.position.xy + View.ViewRectMin.xy) * View.ViewSizeAndSceneTexelSize.zw));
+	float4 lightAttenuation = Square(LightAttenuationTexture.Sample(TextureSampler, (input.position.xy + View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw));
 	const float3 lightColor = LightColor * min(lightAttenuation.x, lightAttenuation.z);
 	float luminance = dot(lightColor, float3(0.3, 0.5, 0.2));
 	sky += HairConstantBuffer.defaultMaterial.glintStrength * glint * float3(luminance, luminance, luminance);
@@ -128,7 +128,7 @@ float4 VelocityMain(GFSDK_Hair_PixelShaderInput input) : SV_Target0
 
 	float2 vel = shaderAttributes.wVel.xy;
 	vel.y = -vel.y;
-	vel = vel / (View.ViewSizeAndSceneTexelSize.xy / 2.0) - (View.ViewToClip[2].xy - View.PrevProjection[2].xy);
+	vel = vel / (View.ViewSizeAndInvSize.xy / 2.0) - (View.ViewToClip[2].xy - View.PrevProjection[2].xy);
 
 	outColor.xy = EncodeVelocityToTexture(vel);
 	outColor.zw = float2(0, 0);

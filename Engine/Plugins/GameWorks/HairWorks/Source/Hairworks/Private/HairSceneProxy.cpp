@@ -23,7 +23,7 @@ FHairSceneProxy::~FHairSceneProxy()
 {
 	if (HairInstanceId != GFSDK_HairInstanceID_NULL)
 	{
-		UE_LOG(LogHairWorks, Log, TEXT("Releasing Hair Instance"));
+		UE_LOG(LogHairWorks, Log, TEXT("Releasing Hair Instance %d"), static_cast<int32>(HairInstanceId));
 		GHairManager->GetHairworksSdk()->FreeHairInstance(HairInstanceId);
 	}
 }
@@ -78,11 +78,11 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	auto ViewMatrices = View.ViewMatrices;
 
 	// Remove temporal AA jitter.
-	if (!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
-	{
-		ViewMatrices.ProjMatrix.M[2][0] = 0.0f;
-		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
-	}
+// 	if (!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
+// 	{
+// 		ViewMatrices.ProjMatrix.M[2][0] = 0.0f;
+// 		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
+// 	}
 	
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
@@ -164,8 +164,8 @@ void FHairSceneProxy::DrawShadow(const FViewMatrices& ViewMatrices, float DepthB
 	// To update shader states
 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
 
-	// Handle shader cache
-	UpdateShaderCache();
+// 	// Handle shader cache
+// 	UpdateShaderCache();
 
 	// Draw
 	GFSDK_HairShaderSettings HairShaderSettings;
@@ -293,7 +293,7 @@ void FHairSceneProxy::CreateRenderThreadResources()
 
 	check(HairWorksSdk);
 
-	UE_LOG(LogHairWorks, Log, TEXT("CreateRenderThreadResources"));
+	UE_LOG(LogHairWorks, Log, TEXT("FHairSceneProxy::CreateRenderThreadResources"));
 
 	check(AssetId != GFSDK_HairAssetID_NULL);
 
@@ -344,6 +344,8 @@ void FHairSceneProxy::SetupBoneMapping_RenderThread(const TArray<FMeshBoneInfo>&
 
 	gfsdk_U32 BoneNum = 0;
 	HairWorksSdk->GetNumBones(AssetId, &BoneNum);
+
+	UE_LOG(LogHairWorks, Log, TEXT("SetupBoneMapping: Bone count %d, asset %d"), BoneNum, static_cast<int32>(AssetId));
 
 	BoneMapping.SetNumUninitialized(BoneNum);
 
@@ -398,6 +400,20 @@ void FHairSceneProxy::UpdateBones_RenderThread(const TArray<FMatrix>& RefMatrice
 	HairWorksSdk->UpdateSkinningMatrices(HairInstanceId, BoneMatrices.Num(), (gfsdk_float4x4*)BoneMatrices.GetData());
 }
 
+void FHairSceneProxy::UpdateHairParams_GameThread(const GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& HairTextures)
+{
+	ENQUEUE_UNIQUE_RENDER_COMMAND_THREEPARAMETER(
+		HairUpdateParams,
+		FHairSceneProxy&, ThisProxy, *this,
+		GFSDK_HairInstanceDescriptor, HairDesc, HairDesc,
+		const TArray<FTexture2DRHIRef>, HairTextures, HairTextures,
+		{
+			ThisProxy.UpdateHairParams(HairDesc, HairTextures);
+		}
+	);
+}
+
+
 void FHairSceneProxy::UpdateHairParams(GFSDK_HairInstanceDescriptor& InHairDesc, const TArray<FTexture2DRHIRef>& InHairTextures)
 {
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
@@ -436,11 +452,13 @@ bool FHairSceneProxy::GetHairBounds_GameThread(FBoxSphereBounds& Bounds)const
 
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
-	FBox HairBox;
-	if(HairWorksSdk->GetBounds(HairInstanceId, reinterpret_cast<gfsdk_float3*>(&HairBox.Min), reinterpret_cast<gfsdk_float3*>(&HairBox.Max)) != GFSDK_HAIR_RETURN_OK)
+	gfsdk_float3 Min;
+	gfsdk_float3 Max;
+
+	if(HairWorksSdk->GetBounds(HairInstanceId, &Min, &Max) != GFSDK_HAIR_RETURN_OK)
 		return false;
 
-	Bounds = FBoxSphereBounds(HairBox);
+	Bounds = FBoxSphereBounds(FBox(FVector(Min.x, Min.y, Min.z), FVector(Max.x, Max.y, Max.z)));
 
 	return true;
 }

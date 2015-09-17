@@ -1965,7 +1965,6 @@ void FSceneRenderer::PostVisibilityFrameSetup()
 // #ifdef GWGLUE
 		FRendererHooks::get().OnPostVisibilityFrameSetup(View);
 // #endif
-
 	}
 
 	bool bCheckLightShafts = false;
