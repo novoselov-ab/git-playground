@@ -58,6 +58,8 @@ namespace UnrealBuildTool.Rules
 
             Definitions.Add("GW_HAIRWORKS=1");
 
+            RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win64.dll"));
+
 
             // Add direct rendering dependencies on a per-platform basis
             if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)

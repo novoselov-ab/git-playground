@@ -30,8 +30,11 @@ public:
 	void TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction) override;
 	FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 
+#if WITH_EDITOR
+
 	//JDM: TODO: Add watchers for the textures so we can limit our calls to UpdateShaderCache - or just be dumb and any time one of its members changes we're invalid
 	void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
 
 	const FHairProperties& GetProperties() { return HairProperties; }
 

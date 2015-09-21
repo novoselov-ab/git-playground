@@ -88,3 +88,36 @@ void FRendererHooks::OnPostVisibilityFrameSetup(FViewInfo &View)
 		callback->getCallback()(View);
 	}
 }
+
+void FRendererHooks::OnAllocLightAttenuation(FPooledRenderTargetDesc Desc)
+{
+	for (auto callback : AllocLightAttenuationCallbacks.getCallbacks())
+	{
+		callback->getCallback()(Desc);
+	}
+
+}
+
+void FRendererHooks::OnAllocCommonDepthTargets(FPooledRenderTargetDesc Desc)
+{
+	for (auto callback : AllocCommonDepthTargetsCallbacks.getCallbacks())
+	{
+		callback->getCallback()(Desc);
+	}
+}
+
+void FRendererHooks::OnAllocSceneColor(FPooledRenderTargetDesc Desc)
+{
+	for (auto callback : AllocSceneColorCallbacks.getCallbacks())
+	{
+		callback->getCallback()(Desc);
+	}
+}
+
+void FRendererHooks::OnDeallocRenderTargets()
+{
+	for (auto callback : DeallocRenderTargetsCallbacks.getCallbacks())
+	{
+		callback->getCallback()();
+	}
+}

@@ -50,6 +50,15 @@ public:
 
 	void OnPostVisibilityFrameSetup(FViewInfo &View);
 
+	// Allocation/deallocation hooks
+
+	void OnAllocLightAttenuation(FPooledRenderTargetDesc Desc);
+	void OnAllocCommonDepthTargets(FPooledRenderTargetDesc Desc);
+	void OnAllocSceneColor(FPooledRenderTargetDesc Desc);
+
+	void OnDeallocRenderTargets();
+
+
 	// Subscription methods
 
 	// Callback lists
@@ -71,6 +80,11 @@ public:
 	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
 
 	FSortedCallbackList<std::function<void(FViewInfo&)>> PostVisibilityFrameSetupCallbacks;
+
+	FSortedCallbackList<std::function<void(FPooledRenderTargetDesc)>> AllocLightAttenuationCallbacks;
+	FSortedCallbackList<std::function<void(FPooledRenderTargetDesc)>> AllocCommonDepthTargetsCallbacks;
+	FSortedCallbackList<std::function<void(FPooledRenderTargetDesc)>> AllocSceneColorCallbacks;
+	FSortedCallbackList<std::function<void()>> DeallocRenderTargetsCallbacks;
 
 	// Unsub methods? Do we ever want to do that? Probably not.
 

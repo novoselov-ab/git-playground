@@ -12,6 +12,7 @@
 #include "SceneUtils.h"
 #include "HdrCustomResolveShaders.h"
 #include "Public/LightPropagationVolumeBlendable.h"
+#include "RendererHooks.h"
 
 IMPLEMENT_UNIFORM_BUFFER_STRUCT(FGBufferResourceStruct,TEXT("GBuffers"));
 
@@ -653,8 +654,9 @@ void FSceneRenderTargets::AllocSceneColor()
 
 		GRenderTargetPool.FindFreeElement(Desc, GetSceneColorForCurrentShadingPath(), GetSceneColorTargetName(CurrentShadingPath));
 
-		// JDM: FIXME!
-		GRenderTargetPool.FindFreeElement(Desc, GWData.HairMask, TEXT("HairMask"));
+//START:GWGLUE
+		FRendererHooks::get().OnAllocSceneColor(Desc);
+//END:GWGLUE
 
 	}
 
@@ -680,8 +682,9 @@ void FSceneRenderTargets::AllocLightAttenuation()
 		Desc.Flags |= TexCreate_FastVRAM;
 		GRenderTargetPool.FindFreeElement(Desc, LightAttenuation, TEXT("LightAttenuation"));
 
-		//JDM:: FIXME!
-		GRenderTargetPool.FindFreeElement(Desc, GWData.HairLightAttenuation, TEXT("HairLightAttenuation"));
+//START:GWGLUE
+		FRendererHooks::get().OnAllocLightAttenuation(Desc);
+//END:GWGLUE
 
 		// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
 	}
@@ -1598,8 +1601,9 @@ void FSceneRenderTargets::AllocateCommonDepthTargets()
 		Desc.Flags |= TexCreate_FastVRAM;
 		GRenderTargetPool.FindFreeElement(Desc, SceneDepthZ, TEXT("SceneDepthZ"));
 
-		//JDM: FIXME
-		GRenderTargetPool.FindFreeElement(Desc, GWData.HairDepthZ, TEXT("HairDepthZ"));
+//START:GWGLUE
+		FRendererHooks::get().OnAllocCommonDepthTargets(Desc);
+//END:GWGLUE
 	}
 
 	// When targeting DX Feature Level 10, create an auxiliary texture to store the resolved scene depth, and a render-targetable surface to hold the unresolved scene depth.
@@ -1879,6 +1883,10 @@ void FSceneRenderTargets::ReleaseAllTargets()
 
 	EditorPrimitivesColor.SafeRelease();
 	EditorPrimitivesDepth.SafeRelease();
+
+//START:GWGLUE
+	FRendererHooks::get().OnDeallocRenderTargets();
+//END:GWGLUE
 }
 
 void FSceneRenderTargets::ReleaseDynamicRHI()

@@ -54,6 +54,8 @@ public:
 
 	TAutoConsoleVariable<int> CVarHairMsaaLevel;
 	TAutoConsoleVariable<int> CVarHairTemporalAa;
+	TAutoConsoleVariable<int> CVarHairMsaa;
+	TAutoConsoleVariable<int> CVarHairShadows;
 	TAutoConsoleVariable<float> CVarHairOutputVelocity;
 	TAutoConsoleVariable<float> CVarHairShadowBiasScale;
 	TAutoConsoleVariable<float> CVarHairShadowTransitionScale;
@@ -74,15 +76,21 @@ public:
 	TAutoConsoleVariable<int> CVarHairVisualizePinConstraints;
 	TAutoConsoleVariable<int> CVarHairVisualizeShadingNormalBone;
 
+	TRefCountPtr<IPooledRenderTarget> HairMask;
+	TRefCountPtr<IPooledRenderTarget> HairLightAttenuation;
+	TRefCountPtr<IPooledRenderTarget> HairDepthZ;
+
 private:
 	GFSDK_HairSDK* HairWorksSdk;
 	TUniquePtr<FHairWorksLogger> HWLogger;
-
 
 	FDelegateHandle		RHIInitHandle;
 	FDelegateHandle		OnExitHandle;
 
 	void FreeResources();
 	void PostRHIInitLoad();
+	void AllocHairDepthZ(FPooledRenderTargetDesc Desc);
+	void AllocHairLightAttenuation(FPooledRenderTargetDesc Desc);
+	void DeallocRenderTargets();
 	void LoadSDKDll();
 };

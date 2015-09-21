@@ -2,7 +2,6 @@
 
 UHair::UHair(const class FObjectInitializer& ObjectInitializer): 
 Super(ObjectInitializer),
-AssetImportData(nullptr),
 HairProperties(),
 AssetData(),
 HairBoneToIdxMap(),

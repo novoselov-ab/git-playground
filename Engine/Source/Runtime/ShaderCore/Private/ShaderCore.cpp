@@ -302,6 +302,19 @@ FString GetRelativeShaderFilename(const FString& InFilename)
 	return RelativeFilename;
 }
 
+//START:GWGLUE
+//
+// Modified LoadShaderSourceFile() to check in AlternateShaderPaths TArray when trying to load a shader. This allows our plugins to keep their shaders local to their own directory structures.
+//
+
+// NOTE: There has to be a better place for this to live.
+TArray<FString> AlternateShaderPaths;
+
+void AddAlternateShaderPath(const TCHAR* Path)
+{
+	AlternateShaderPaths.Add(FString(Path));
+}
+
 bool LoadShaderSourceFile(const TCHAR* Filename, FString& OutFileContents)
 {
 	// it's not expected that cooked platforms get here, but if they do, this is the final out
@@ -316,6 +329,34 @@ bool LoadShaderSourceFile(const TCHAR* Filename, FString& OutFileContents)
 	{
 		SCOPE_SECONDS_COUNTER(ShaderFileLoadingTime);
 
+		auto loadShader = [&OutFileContents](FString ShaderFullPath) -> bool
+		{
+			// Protect GShaderFileCache from simultaneous access by multiple threads
+			FScopeLock ScopeLock(&FileCacheCriticalSection);
+
+			FString* CachedFile = GShaderFileCache.Find(ShaderFullPath);
+
+			//if this file has already been loaded and cached, use that
+			if (CachedFile)
+			{
+				OutFileContents = *CachedFile;
+				return true;
+			}
+			else
+			{
+				// verify SHA hash of shader files on load. missing entries trigger an error
+				if (FFileHelper::LoadFileToString(OutFileContents, *ShaderFullPath, FFileHelper::EHashOptions::EnableVerify | FFileHelper::EHashOptions::ErrorMissingHash))
+				{
+					//update the shader file cache
+					GShaderFileCache.Add(ShaderFullPath, *OutFileContents);
+					return true;
+				}
+			}
+
+			return false;
+		};
+
+
 		// Load the specified file from the System/Shaders directory.
 		FString ShaderFilename = FPaths::Combine(FPlatformProcess::BaseDir(), FPlatformProcess::ShaderDir(), Filename);
 
@@ -323,32 +364,40 @@ bool LoadShaderSourceFile(const TCHAR* Filename, FString& OutFileContents)
 		{
 			ShaderFilename += TEXT(".usf");
 		}
-		// Protect GShaderFileCache from simultaneous access by multiple threads
-		FScopeLock ScopeLock(&FileCacheCriticalSection);
 
-		FString* CachedFile = GShaderFileCache.Find(ShaderFilename);
+		bResult = loadShader(ShaderFilename);
 
-		//if this file has already been loaded and cached, use that
-		if (CachedFile)
+		if (!bResult)
 		{
-			OutFileContents = *CachedFile;
-			bResult = true;
-		}
-		else
-		{
-			// verify SHA hash of shader files on load. missing entries trigger an error
-			if (FFileHelper::LoadFileToString(OutFileContents, *ShaderFilename, FFileHelper::EHashOptions::EnableVerify|FFileHelper::EHashOptions::ErrorMissingHash) )
+			UE_LOG(LogShaders, Log, TEXT("Didn't find shader %s in the systems shader dir, now looking in alternate paths."), Filename);
+			
+			// Can't find it, so look in the alternate shader dirs
+
+			for (auto altdir : AlternateShaderPaths)
 			{
-				//update the shader file cache
-				GShaderFileCache.Add(ShaderFilename, *OutFileContents);
-				bResult = true;
+				ShaderFilename = FPaths::Combine(FPlatformProcess::BaseDir(), *(FPaths::EngineDir()), *altdir, Filename);
+
+				if (FPaths::GetExtension(ShaderFilename) == TEXT(""))
+				{
+					ShaderFilename += TEXT(".usf");
+				}
+
+				bResult = loadShader(ShaderFilename);
+
+				if (bResult)
+				{
+					UE_LOG(LogShaders, Log, TEXT("Found shader in alternate path %s"), *altdir);
+					break;
+				}
 			}
 		}
+
 	}
 	INC_FLOAT_STAT_BY(STAT_ShaderCompiling_LoadingShaderFiles,(float)ShaderFileLoadingTime);
 
 	return bResult;
 }
+//END:GWGLUE
 
 void LoadShaderSourceFileChecked(const TCHAR* Filename, FString& OutFileContents)
 {

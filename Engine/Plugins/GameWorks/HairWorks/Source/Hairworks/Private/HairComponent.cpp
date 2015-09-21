@@ -83,6 +83,8 @@ FBoxSphereBounds UHairComponent::CalcBounds(const FTransform& LocalToWorld) cons
 	return HairBounds;
 }
 
+
+#if WITH_EDITOR
 static FName Name_Hair = GET_MEMBER_NAME_CHECKED(UHairComponent, Hair);
 static FName Name_HairProperties = GET_MEMBER_NAME_CHECKED(UHairComponent, HairProperties);
 
@@ -115,6 +117,7 @@ void UHairComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		}
 	}
 }
+#endif
 
 void UHairComponent::SendRenderDynamicData_Concurrent()
 {

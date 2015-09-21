@@ -1350,13 +1350,17 @@ int32 FEngineLoop::PreInit( const TCHAR* CmdLine )
 	FScopedSlowTask SlowTask(100, NSLOCTEXT("EngineLoop", "EngineLoop_Initializing", "Initializing..."));
 
 	SlowTask.EnterProgressFrame(10);
-
+	
 	// Initialize the RHI.
 	RHIInit(bHasEditorToken);
 
-//#ifdef GWGLUE
-	FCoreDelegates::OnRHIInit.Broadcast();
-//#endif
+//START:GWGLUE
+	// NOTE: This isn't right. 
+	if (!IsRunningCommandlet())
+	{
+		FCoreDelegates::OnRHIInit.Broadcast();
+	}
+//END:GWGLUE
 
 	if (!FPlatformProperties::RequiresCookedData())
 	{

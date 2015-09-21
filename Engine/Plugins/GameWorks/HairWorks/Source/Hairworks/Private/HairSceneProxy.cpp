@@ -64,7 +64,7 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	// Pass rendering parameters
 	GHairManager->UpdateHairInstanceDescriptor(HairInstanceId, HairDesc);
 #else
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+	GHairManager->GetHairworksSdk()->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
 #endif
 
 	// Set states

@@ -524,6 +524,16 @@ struct FShaderCompilerOutput
  */
 extern SHADERCORE_API FString GetRelativeShaderFilename(const FString& InFilename);
 
+
+//START:GWGLUE
+/*
+ Add another path for the shader load code to look in. This path is relative to the root directory.
+
+ This should be called by plugins that want to point to their own contained shaders.
+*/
+extern SHADERCORE_API void AddAlternateShaderPath(const TCHAR* Path);
+//END:GWGLUE
+
 /**
  * Loads the shader file with the given name.
  * @param Filename - The filename of the shader to load.
