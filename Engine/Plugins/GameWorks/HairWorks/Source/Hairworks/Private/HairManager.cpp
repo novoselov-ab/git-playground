@@ -243,17 +243,16 @@ void FHairManager::LoadSDKDll()
 	if (GMaxRHIShaderPlatform != EShaderPlatform::SP_PCD3D_SM5)
 		return;
 
-	// TODO: Support 32 bit!
 	// Initialize SDK
-	FString LibPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win");
+	FString LibPath;
 
 #if PLATFORM_64BITS
-	LibPath += TEXT("64");
+	LibPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win64.dll");
 #else
-	LibPath += TEXT("32");
+	LibPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win32.dll");
 #endif
 
-	LibPath += TEXT(".dll");
+	//TODO: Load debug dll dependent on config/unreal config
 
 	HairWorksSdk = GFSDK_LoadHairSDK(TCHAR_TO_ANSI(*LibPath), GFSDK_HAIRWORKS_VERSION, nullptr, HWLogger.Get());
 	if (!HairWorksSdk)
@@ -267,6 +266,7 @@ void FHairManager::LoadSDKDll()
 	if (D3d11Rhi == nullptr)
 	{
 		UE_LOG(LogHairWorks, Error, TEXT("D3D11RHI is null"));
+		return;
 	}
 
 	HairWorksSdk->InitRenderResources(D3d11Rhi->GetDevice(), D3d11Rhi->GetDeviceContext());
