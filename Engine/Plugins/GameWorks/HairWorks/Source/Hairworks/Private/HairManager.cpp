@@ -14,7 +14,7 @@ FHairManager::FHairManager():
 	CVarHairMsaaLevel(TEXT("r.Hair.MsaaLevel"), 4, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairTemporalAa(TEXT("r.Hair.TemporalAa"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairMsaa(TEXT("r.Hair.Msaa"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairShadows(TEXT("r.Hair.Shadows"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairShadows(TEXT("r.Hair.Shadows"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairOutputVelocity(TEXT("r.Hair.OutputVelocity"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadowBiasScale(TEXT("r.Hair.Shadow.BiasScale"), 0.1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadowTransitionScale(TEXT("r.Hair.Shadow.TransitionScale"), 0.1, TEXT(""), ECVF_RenderThreadSafe),
