@@ -10,3 +10,8 @@ struct FFlexShapeTransform
 };
 
 
+struct FFlexVertex
+{
+	FVector Position;
+	FPackedNormal TangentZ;
+};

@@ -5,11 +5,13 @@
 /* A Flex cloth asset is a specialized Flex asset that creates one particle per mesh vertex and contains parameter 
 to configure cloth behavior. */
 UCLASS(config = Engine, editinlinenew, meta = (DisplayName = "Flex Cloth Asset"))
-class ENGINE_API UFlexAssetCloth : public UFlexAsset
+class FLEX_API UFlexAssetCloth : public UFlexAsset
 {
+	GENERATED_BODY()
 public:
+	UFlexAssetCloth(const FObjectInitializer& ObjectInitializer);
+	virtual ~UFlexAssetCloth() = default;
 
-	GENERATED_UCLASS_BODY()
 
 	/** How much the cloth resists stretching */
 	UPROPERTY(EditAnywhere, Category = Flex)

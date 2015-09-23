@@ -111,6 +111,7 @@ void FFlexAllocator::ForAnyElementType::ResizeAllocation(int32 PreviousNumElemen
 	}
 }
 
+// JDM: Get rid of this.
 namespace 
 {
 	// helpers to find actor, shape pairs in a TSet

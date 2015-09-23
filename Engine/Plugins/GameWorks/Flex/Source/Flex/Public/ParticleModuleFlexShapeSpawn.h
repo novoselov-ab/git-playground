@@ -13,11 +13,17 @@ UCLASS(editinlinenew, hidecategories = Object, MinimalAPI, meta = (DisplayName =
 class UParticleModuleFlexShapeSpawn : public UParticleModuleSpawnBase
 {
 	GENERATED_UCLASS_BODY()
-	
-	/** The mesh volume to emit from */
-	UPROPERTY(EditAnywhere, Category=Spawn)
-	UStaticMesh* Mesh;
-	
+
+	// NOTE: This doesn't make sense if this is actually an asset! It has no associated world transform!
+	/** Properties for the associated Flex object */
+	UPROPERTY(EditAnywhere, Instanced, Category = Flex)
+	UFlexAsset* FlexAsset;
+
+	// JDM: Redundant
+// 	/** The mesh volume to emit from */
+// 	UPROPERTY(EditAnywhere, Category=Spawn)
+// 	UStaticMesh* Mesh;
+// 	
 	/** Velocity to emit particles with, note that this increases the required spawn rate */
 	UPROPERTY(EditAnywhere, Category=Velocity)
 	float Velocity;

@@ -11,7 +11,7 @@ class FFlexMeshSceneProxy;
 struct FlexExtInstance;
 
 UCLASS(hidecategories = (Object))
-class ENGINE_API UFlexComponent : public UStaticMeshComponent, public IFlexContainerClient
+class FLEX_API UFlexComponent : public UStaticMeshComponent, public IFlexContainerClient
 {
 	GENERATED_UCLASS_BODY()		
 
@@ -25,6 +25,10 @@ public:
 		float OldMass;
 		FVector LocalPos;
 	};
+
+	/** Properties for the associated Flex object */
+	UPROPERTY(EditAnywhere, Instanced, Category = Flex)
+	class UFlexAsset* FlexAsset;
 
 	/** Override the FlexAsset's container / phase / attachment properties */
 	UPROPERTY(EditAnywhere, Category = Flex)

@@ -1,18 +1,6 @@
-#include "FlexPCH.h"
+#pragma once
+#include "VertexFactory.h"
 
-#if STATS
-DECLARE_CYCLE_STAT(TEXT("Skin Mesh Time (CPU)"), STAT_Flex_RenderMeshTime, STATGROUP_Flex);
-#endif
-
-
-/* CPU Skinning */
-
-
-
-
-
-
-/* GPU Skinning */
 
 class FFlexMeshVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
@@ -26,7 +14,3 @@ private:
 	FShaderResourceParameter ClusterTranslationsParameter;
 	FShaderResourceParameter ClusterRotationsParameter;
 };
-
-
-
-

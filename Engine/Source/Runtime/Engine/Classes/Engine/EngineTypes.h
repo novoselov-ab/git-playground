@@ -335,6 +335,13 @@ enum ECollisionChannel
 	ECC_PhysicsBody UMETA(DisplayName="PhysicsBody"),
 	ECC_Vehicle UMETA(DisplayName="Vehicle"),
 	ECC_Destructible UMETA(DisplayName="Destructible"),
+
+//START:GWGLUE
+// We need our own collision channels and there's no way to extend this.
+	ECC_Flex UMETA(DisplayName = "Flex"),
+//END:GWGLUE
+
+
 	// @NOTE : when you add more here for predefined engine channel
 	// please change the max in the CollisionProfile
 	// search ECC_Destructible

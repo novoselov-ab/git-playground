@@ -26,8 +26,8 @@ namespace UnrealBuildTool.Rules
 				    "AssetTools",
     				"Engine",
                     "UnrealEd",
-					"RenderCore",
-                    "Renderer"
+                    "PhysX",
+                    "Apex"
 				}
 				);
 

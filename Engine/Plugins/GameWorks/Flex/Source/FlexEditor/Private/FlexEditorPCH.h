@@ -1,6 +1,6 @@
 #pragma once
 
-DECLARE_LOG_CATEGORY_EXTERN(FlexEditor, Verbose, All);
+DECLARE_LOG_CATEGORY_EXTERN(LogFlexEditor, Verbose, All);
 
 
 #include "FlexEditorModule.h"

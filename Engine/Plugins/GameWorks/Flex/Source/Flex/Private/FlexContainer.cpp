@@ -1,12 +1,11 @@
 #include "FlexPCH.h"
 
-DEFINE_LOG_CATEGORY(LogFlex);
-
 void FlexErrorFunc(FlexErrorSeverity, const char* msg, const char* file, int line)
 {
 	UE_LOG(LogFlex, Warning, TEXT("Flex Error: %s, %s:%d"), ANSI_TO_TCHAR(msg), ANSI_TO_TCHAR(file), line);
 }
 
+//JDM: FIXME: Initializers
 // UFlexContainer
 UFlexContainer::UFlexContainer(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

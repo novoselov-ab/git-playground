@@ -3,7 +3,7 @@
 #include "flex.h"
 #include "flexExt.h"
 
-//#include "PhysXSupport.h"
+#include "Runtime/Engine/Private/PhysicsEngine/PhysXSupport.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFlex, Verbose, All);
 
@@ -27,7 +27,6 @@ DECLARE_LOG_CATEGORY_EXTERN(LogFlex, Verbose, All);
 #include "FlexRopeSceneProxy.h"
 #include "FlexVertexBuffer.h"
 #include "FlexVertexFactory.h"
-#include "ParticleModuleFlexFluidSpawn.h"
 #include "ParticleModuleFlexShapeSpawn.h"
 
 

@@ -27,6 +27,10 @@ enum EMaterialUsage
 	MATUSAGE_Landscape,
 	MATUSAGE_InstancedStaticMeshes,
 	MATUSAGE_Clothing,
+//START:GWGLUE
+	MATUSAGE_FlexFluidSurfaces,
+	MATUSAGE_FlexMeshes,
+//END:GWGLUE
 	MATUSAGE_MAX,
 };
 

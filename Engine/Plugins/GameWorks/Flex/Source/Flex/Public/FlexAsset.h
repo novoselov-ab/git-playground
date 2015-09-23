@@ -42,11 +42,13 @@ struct FFlexPhase
 /* A Flex asset contains the particle and constraint data for a shape, such as cloth, rigid body or inflatable, an asset 
    is added to a container by spawning through a particle system or Flex actor. */
 UCLASS(Abstract, config = Engine, editinlinenew)
-class ENGINE_API UFlexAsset : public UObject
+class FLEX_API UFlexAsset : public UObject
 {
+	GENERATED_BODY()
 public:
 
-	GENERATED_UCLASS_BODY()
+	UFlexAsset(const FObjectInitializer& ObjectInitializer);
+	virtual ~UFlexAsset() = default;
 
 	/** The simulation container to spawn any flex data contained in the static mesh into */
 	UPROPERTY(EditAnywhere, Category = Flex, meta = (ToolTip = "If the static mesh has Flex data then it will be spawned into this simulation container."))

@@ -23,6 +23,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"CoreUObject",
 					"Engine",
+                    "PhysX",
+                    "Apex",
 //					"RHI",
 // 					"RenderCore",
 // 					"Renderer",
