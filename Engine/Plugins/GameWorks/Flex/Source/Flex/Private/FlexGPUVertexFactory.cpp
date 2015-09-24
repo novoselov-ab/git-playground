@@ -23,7 +23,7 @@ FFlexGPUVertexFactory::~FFlexGPUVertexFactory()
 
 void FFlexGPUVertexFactory::AddVertexElements(DataType& InData, FVertexDeclarationElementList& Elements)
 {
-	FLocalVertexFactory::AddVertexElements(Data, Elements);
+	FFlexVertexFactory::AddVertexElements(Data, Elements);
 
 	// Add Flex elements
 	Elements.Add(AccessStreamComponent(FlexData.ClusterIndices, 8));
@@ -33,7 +33,7 @@ void FFlexGPUVertexFactory::AddVertexElements(DataType& InData, FVertexDeclarati
 
 void FFlexGPUVertexFactory::AddVertexPositionElements(DataType& Data, FVertexDeclarationElementList& Elements)
 {
-	FLocalVertexFactory::AddVertexElements(Data, Elements);
+	FFlexVertexFactory::AddVertexElements(Data, Elements);
 
 	// Add Flex elements
 	Elements.Add(AccessStreamComponent(FlexData.ClusterIndices, 8));
