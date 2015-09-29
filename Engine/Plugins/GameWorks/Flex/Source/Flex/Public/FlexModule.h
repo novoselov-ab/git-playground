@@ -10,5 +10,10 @@ public:
 	virtual void ShutdownModule() override;
 
 private:
+
+	void * CudaRtHandle = nullptr;
+	void * FLEXCoreHandle = nullptr;
+	void * FLEXExtHandle = nullptr;
+
 };
 

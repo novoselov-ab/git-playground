@@ -246,13 +246,13 @@ void FHairManager::LoadSDKDll()
 	// Initialize SDK
 	FString LibPath;
 
+	//TODO: Load debug version properly
+
 #if PLATFORM_64BITS
 	LibPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win64.dll");
 #else
 	LibPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win32.dll");
 #endif
-
-	//TODO: Load debug dll dependent on config/unreal config
 
 	HairWorksSdk = GFSDK_LoadHairSDK(TCHAR_TO_ANSI(*LibPath), GFSDK_HAIRWORKS_VERSION, nullptr, HWLogger.Get());
 	if (!HairWorksSdk)

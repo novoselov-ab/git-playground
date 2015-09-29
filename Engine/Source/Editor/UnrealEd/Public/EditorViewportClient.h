@@ -994,6 +994,11 @@ public:
 	/** Override the far clipping plane. Set to a negative value to disable the override. */
 	void OverrideFarClipPlane(const float InFarPlane);
 
+//START:GWGLUE
+	// GetPreviewScene() allows external extension code to access the preview scene, which is very useful.
+	FPreviewScene* GetPreviewScene() { return PreviewScene; }
+//END:GWGLUE
+
 protected:
 	/** Invalidates the viewport widget (if valid) to register its active timer */
 	void InvalidateViewportWidget();

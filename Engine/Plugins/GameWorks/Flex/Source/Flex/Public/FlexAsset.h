@@ -16,6 +16,8 @@ struct FFlexPhase
 {
 	GENERATED_USTRUCT_BODY()
 
+	FFlexPhase();
+
 	/** If true, then particles will be auto-assigned a new group, by default particles will only collide with particles in different groups */
 	UPROPERTY(EditAnywhere, Category = Phase)
 	bool AutoAssignGroup;
@@ -36,7 +38,6 @@ struct FFlexPhase
 	UPROPERTY(EditAnywhere, Category = Phase)
 	bool Fluid;
 
-	FFlexPhase();
 };
 
 /* A Flex asset contains the particle and constraint data for a shape, such as cloth, rigid body or inflatable, an asset 
@@ -108,8 +109,9 @@ public:
 	virtual void BeginDestroy() override;
 
 	virtual void ReImport(const UStaticMesh* Parent) {}
-	virtual FlexExtAsset* GetFlexAsset() { return NULL; }
+	virtual FlexExtAsset* GetFlexAsset() { return nullptr; }
 
+private:
 	//
 	FlexExtAsset* Asset;
 

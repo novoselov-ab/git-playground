@@ -100,10 +100,11 @@ EnginePrivate.h: Unreal engine private header file.
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/SortedCallbackList.h"
 #include "GameWorks/RendererHooks.h"
+#include "GameWorks/PhysicsHooks.h"
 #include "GameWorks/SceneRenderTargetsGW.h"
 #include "GameWorks/ViewInfoGW.h"
 #include "GameWorks/PrimitiveViewRelevanceGW.h"
-//#endif
+//END:GWGLUE

@@ -122,7 +122,7 @@ struct TAllocatorTraits<FFlexAllocator>
 // one container per-phys scene
 struct FFlexContainerInstance
 {
-	FFlexContainerInstance(UFlexContainer* Template, FPhysScene* Owner);
+	FFlexContainerInstance(UFlexContainer* Template);
 	virtual ~FFlexContainerInstance();
 
 	int32 CreateParticle(const FVector4& pos, const FVector& vel, int32 phase);
@@ -176,7 +176,6 @@ struct FFlexContainerInstance
 	// cached by PhysScene
 	int32 NumStaticTriangles;
 
-	FPhysScene* Owner;
 	FBoxSphereBounds Bounds;
 
 	TArray<IFlexContainerClient*> Components;

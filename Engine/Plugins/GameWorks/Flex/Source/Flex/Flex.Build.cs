@@ -30,7 +30,7 @@ namespace UnrealBuildTool.Rules
 // 					"Renderer",
 					"ShaderCore",
 //     				"UnrealEd",
-// 				    "AssetTools",
+ 				    "AssetTools",
 // 				    "ContentBrowser",
 //                     "EditorStyle"
 				}
@@ -42,42 +42,67 @@ namespace UnrealBuildTool.Rules
 //                 }
 //             );
 
-// 		    PrivateIncludePathModuleNames.AddRange(
-// 			    new string[] {
-// 				    "AssetTools",
-// 				    "AssetRegistry"
-// 			    });
-// 
-// 		    DynamicallyLoadedModuleNames.AddRange(
-// 			    new string[] {
-// 				    "AssetTools",
-// 				    "AssetRegistry"
-// 			    });
+		    PrivateIncludePathModuleNames.AddRange(
+			    new string[] {
+				    "AssetTools",
+				    "AssetRegistry"
+			    });
 
-/*
-            Definitions.Add("GW_HAIRWORKS=1");
+		    DynamicallyLoadedModuleNames.AddRange(
+			    new string[] {
+				    "AssetTools",
+				    "AssetRegistry"
+			    });
 
+
+            // Add the 3 dlls to RuntimeDependencies so that they are copied when packaging.
             if (Target.Platform == UnrealTargetPlatform.Win32)
             {
-                RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/HairWorks/Libraries/Win32/GFSDK_HairWorks.win32.dll"));
+                RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/cudart32_70.dll"));
             }
             else if (Target.Platform == UnrealTargetPlatform.Win64)
             {
-                RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/HairWorks/Libraries/Win64/GFSDK_HairWorks.win64.dll"));
+                RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/cudart64_70.dll"));
             }
-            // Add direct rendering dependencies on a per-platform basis
-            if (Target.Platform == UnrealTargetPlatform.Win32 || Target.Platform == UnrealTargetPlatform.Win64)
+
+
+            if (Target.Configuration == UnrealTargetConfiguration.Debug && BuildConfiguration.bDebugBuildsActuallyUseDebugCRT)
             {
-                PrivateDependencyModuleNames.AddRange(new string[] { "D3D11RHI" });
-                PrivateIncludePaths.AddRange(
-                    new string[] {
-  					    "../../../../Source/Runtime/Windows/D3D11RHI/Private",
-  					    "../../../../Source/Runtime/Windows/D3D11RHI/Private/Windows",
-					    // ... add other private include paths required here ...
-    				    }
-                    );
+                if (Target.Platform == UnrealTargetPlatform.Win32)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexDebug_x86.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexExtDebug_x86.dll"));
+                }
+                else if (Target.Platform == UnrealTargetPlatform.Win64)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexDebug_x64.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexExtDebug_x64.dll"));
+                }
+            } else if (Target.Configuration == UnrealTargetConfiguration.Shipping || Target.Configuration == UnrealTargetConfiguration.Test)
+            {
+                if (Target.Platform == UnrealTargetPlatform.Win32)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexRelease_x86.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexExtRelease_x86.dll"));
+                }
+                else if (Target.Platform == UnrealTargetPlatform.Win64)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexRelease_x64.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexExtRelease_x64.dll"));
+                }
+            } else
+            {
+                if (Target.Platform == UnrealTargetPlatform.Win32)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexRelease_x86.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win32/flexExtRelease_x86.dll"));
+                }
+                else if (Target.Platform == UnrealTargetPlatform.Win64)
+                {
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexRelease_x64.dll"));
+                    RuntimeDependencies.Add(new RuntimeDependency("$(EngineDir)/Plugins/GameWorks/Flex/Libraries/Win64/flexExtRelease_x64.dll"));
+                }
             }
-			*/
 
 		}
 	}

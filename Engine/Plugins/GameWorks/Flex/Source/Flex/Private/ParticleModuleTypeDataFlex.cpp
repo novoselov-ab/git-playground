@@ -1,6 +1,10 @@
 #include "FlexPCH.h"
 
-UParticleModuleTypeDataFlex::UParticleModuleTypeDataFlex(const FObjectInitializer& ObjectInitializer)
+UParticleModuleTypeDataFlex::UParticleModuleTypeDataFlex(const FObjectInitializer& ObjectInitializer):
+	UParticleModuleTypeDataBase(ObjectInitializer),
+	FlexContainerTemplate(nullptr),
+	Phase(),
+	Mass(0)
 {
 
 }

@@ -1,12 +1,12 @@
 #include "FlexPCH.h"
 
-FFlexPhase::FFlexPhase()
+FFlexPhase::FFlexPhase():
+AutoAssignGroup(true),
+Group(0),
+SelfCollide(false),
+IgnoreRestCollisions(false),
+Fluid(false)
 {
-	AutoAssignGroup = true;
-	Group = 0;
-	SelfCollide = false;
-	IgnoreRestCollisions = false;
-	Fluid = false;
 }
 
 UFlexAsset::UFlexAsset(const FObjectInitializer& ObjectInitializer)
@@ -18,7 +18,7 @@ UFlexAsset::UFlexAsset(const FObjectInitializer& ObjectInitializer)
 void UFlexAsset::PostInitProperties()
 {
 #if WITH_FLEX
-	//JDM: Fix this crap
+	//JDM: Fix this crap - newing a struct? WTF.
 	// allocate an extensions object to represent particles and constraints for this asset
 	Asset = new FlexExtAsset();
 #endif

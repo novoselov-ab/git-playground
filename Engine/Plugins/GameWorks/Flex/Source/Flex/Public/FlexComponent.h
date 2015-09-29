@@ -93,7 +93,7 @@ public:
 	// End UPrimitiveComponent Interface
 
 	// Begin IFlexContainerClient Interface
-	virtual bool IsEnabled() { return AssetInstance != NULL; }
+	virtual bool IsEnabled() { return AssetInstance != nullptr; }
 	virtual FBoxSphereBounds GetBounds() { return Bounds; }
 	virtual void Synchronize();
 	// End IFlexContainerClient Interface

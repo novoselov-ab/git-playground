@@ -8,8 +8,6 @@ struct FVector;
 struct FLinearColor;
 class FProjectedShadowInfo;
 
-//typedef TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> PrimitiveArrayType;
-
 /*
 	This class is called by UE4s rendering layer in multiple places, to allow the GW plugins to do their rendering where they need to without impacting UE4 with a lot of pasted in code.
 

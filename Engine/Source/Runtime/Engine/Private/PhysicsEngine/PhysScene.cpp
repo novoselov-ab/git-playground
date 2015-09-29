@@ -20,6 +20,7 @@
 #include "Components/DestructibleComponent.h"
 #include "Components/LineBatchComponent.h"
 #include "PhysicsEngine/PhysicsSettings.h"
+#include "PhysicsHooks.h"
 
 #define USE_ADAPTIVE_FORCES_FOR_ASYNC_SCENE			1
 #define USE_SPECIAL_FRICTION_MODEL_FOR_ASYNC_SCENE	0
@@ -1034,6 +1035,10 @@ void FPhysScene::StartFrame()
 			PhysicsSceneCompletion = FinishPrerequisites[0]; // we don't need a join
 		}
 	}
+
+//START:GWGLUE
+	FPhysicsHooks::get().OnPhysicsSceneEndOfStartFrame(DeltaSeconds);
+//END:GWGLUE
 
 	// Record the sync tick time for use with the async tick
 	SyncDeltaSeconds = DeltaSeconds;

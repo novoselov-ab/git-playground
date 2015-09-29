@@ -27,6 +27,8 @@ namespace EFlexSolverRelaxationMode
 UCLASS(hidecategories=Object, MinimalAPI, BlueprintType)
 class UFlexContainer : public UObject
 {
+	//TODO: Implement GetTypeHash()
+
 	GENERATED_UCLASS_BODY()
 
 	/** The radius of particles in this container. */

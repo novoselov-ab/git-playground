@@ -58,87 +58,90 @@ void UFlexComponent::OnRegister()
 		// request attach with the FlexContainer
 		if (ContainerTemplate && (!GIsEditor  || GIsPlayInEditorWorld) && !AssetInstance)
 		{
-			FPhysScene* PhysScene = GetWorld()->GetPhysicsScene();
+			AFlexGlobalDataActor* GlobalDataActor = AFlexGlobalDataActor::GetGlobalDataActorFromWorld(GetWorld());
 
-			if (PhysScene)
+			check(GlobalDataActor);
+
+			FFlexContainerInstance* Container = GlobalDataActor->GetContainerInstance(ContainerTemplate);
+
+			check(Container);
+
+			ContainerInstance = Container;
+
+			// JDM: Registering here - does this override the prev register?
+			ContainerInstance->Register(this);
+
+			const int NumParticles = FlexAsset->Particles.Num();
+
+			SimPositions.SetNum(NumParticles);
+			SimNormals.SetNum(NumParticles);
+
+			float InvMassScale = 1.0f;
+			if (OverrideAsset)
 			{
-				FFlexContainerInstance* Container = PhysScene->GetFlexContainer(ContainerTemplate);
-				if (Container)
+				InvMassScale = (Mass > 0.0f) ? (FlexAsset->Mass / Mass) : 0.0f;
+			}
+
+			if (NumParticles == PreSimPositions.Num())
+			{
+				// if pre-sim state still matches the static mesh apply any pre-simulated positions to the particles
+				for (int i=0; i < NumParticles; ++i)
 				{
-					ContainerInstance = Container;
-					ContainerInstance->Register(this);
+					float mass = FlexAsset->Particles[i].W*InvMassScale;
 
-					const int NumParticles = FlexAsset->Particles.Num();
+					SimPositions[i] = FVector4(PreSimPositions[i], mass);
+				}
+			}
+			else
+			{
+				// particles are static mesh positions transformed by actor position
+				for (int i=0; i < NumParticles; ++i)
+				{
+					FVector LocalPos = FlexAsset->Particles[i];
+					float mass = FlexAsset->Particles[i].W*InvMassScale;
 
-					SimPositions.SetNum(NumParticles);
-					SimNormals.SetNum(NumParticles);
+					SimPositions[i] = FVector4(FVector(ComponentToWorld.TransformPosition(LocalPos)), mass);
+				}
+			}
 
-					float InvMassScale = 1.0f;
-					if (OverrideAsset)
-					{
-						InvMassScale = (Mass > 0.0f) ? (FlexAsset->Mass / Mass) : 0.0f;
-					}
+			// calculate normals for initial particle positions, this is necessary because otherwise 
+			// the mesh will be rendered incorrectly if it is visible before it is first simulated
+			// todo: serialize these initial normals
+			if (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass())
+			{
+				const TArray<int>& TriIndices = FlexAsset->Triangles;
+				int NumTriangles = TriIndices.Num()/3;
 
-					if (NumParticles == PreSimPositions.Num())
-					{
-						// if pre-sim state still matches the static mesh apply any pre-simulated positions to the particles
-						for (int i=0; i < NumParticles; ++i)
-						{
-							float mass = FlexAsset->Particles[i].W*InvMassScale;
-
-							SimPositions[i] = FVector4(PreSimPositions[i], mass);
-						}
-					}
-					else
-					{
-						// particles are static mesh positions transformed by actor position
-						for (int i=0; i < NumParticles; ++i)
-						{
-							FVector LocalPos = FlexAsset->Particles[i];
-							float mass = FlexAsset->Particles[i].W*InvMassScale;
-
-							SimPositions[i] = FVector4(FVector(ComponentToWorld.TransformPosition(LocalPos)), mass);
-						}
-					}
-
-					// calculate normals for initial particle positions, this is necessary because otherwise 
-					// the mesh will be rendered incorrectly if it is visible before it is first simulated
-					// todo: serialize these initial normals
-					if (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass())
-					{
-						const TArray<int>& TriIndices = FlexAsset->Triangles;
-						int NumTriangles = TriIndices.Num()/3;
-
-						const FVector4* RESTRICT Particles = &SimPositions[0];
-						FVector* RESTRICT Normals = &SimNormals[0];
+				const FVector4* RESTRICT Particles = &SimPositions[0];
+				FVector* RESTRICT Normals = &SimNormals[0];
 				
-						// iterate over triangles updating vertex normals
-						for (int i=0; i < NumTriangles; ++i)
-						{
-							const int a = TriIndices[i*3+0];
-							const int b = TriIndices[i*3+1];
-							const int c = TriIndices[i*3+2];
+				// iterate over triangles updating vertex normals
+				for (int i=0; i < NumTriangles; ++i)
+				{
+					const int a = TriIndices[i*3+0];
+					const int b = TriIndices[i*3+1];
+					const int c = TriIndices[i*3+2];
 
-							FVector Vertex0 = Particles[a];
-							FVector Vertex1 = Particles[b];
-							FVector Vertex2 = Particles[c];
+					FVector Vertex0 = Particles[a];
+					FVector Vertex1 = Particles[b];
+					FVector Vertex2 = Particles[c];
 
-							FVector TriNormal = (Vertex1-Vertex0)^(Vertex2-Vertex0);
+					FVector TriNormal = (Vertex1-Vertex0)^(Vertex2-Vertex0);
 
-							Normals[a] += TriNormal;
-							Normals[b] += TriNormal;
-							Normals[c] += TriNormal;
-						}
-
-						// normalize normals
-						for (int i=0; i < NumParticles; ++i)
-							Normals[i] = Normals[i].GetSafeNormal();					
-					}
+					Normals[a] += TriNormal;
+					Normals[b] += TriNormal;
+					Normals[c] += TriNormal;
 				}
 
-				// ensure valid initial bounds for LOD
-				UpdateBounds();
+				// normalize normals
+				for (int i=0; i < NumParticles; ++i)
+					Normals[i] = Normals[i].GetSafeNormal();					
 			}
+				
+
+			// ensure valid initial bounds for LOD
+			UpdateBounds();
+			
 		}
 	}
 
@@ -154,14 +157,13 @@ void UFlexComponent::OnUnregister()
 		DEC_DWORD_STAT(STAT_Flex_ActiveMeshActorCount);
 
 		ContainerInstance->DestroyInstance(AssetInstance);
-		AssetInstance = NULL;
-
+		AssetInstance = nullptr;
 	}
 
 	if (ContainerInstance)
 	{
 		ContainerInstance->Unregister(this);
-		ContainerInstance = NULL;
+		ContainerInstance = nullptr;
 	}
 
 }
@@ -224,7 +226,7 @@ void UFlexComponent::Synchronize()
 			DstNormals[i] = SrcNormals[ParticleIndex];
 		}
 
-		if (FlexAsset->GetClass() == UFlexAssetSolid::StaticClass())
+		if (FlexAsset->IsA(UFlexAssetSolid::StaticClass()) )
 		{
 			const int ShapeIndex = AssetInstance->mShapeIndex;
 
@@ -246,8 +248,8 @@ void UFlexComponent::Synchronize()
 
 			UpdateComponentToWorld();
 		}
-		else if (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() || 
-				 FlexAsset->GetClass() == UFlexAssetSoft::StaticClass())
+		else if (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+				 FlexAsset->IsA(UFlexAssetSoft::StaticClass()) )
 		{
 			if (IsCollisionEnabled())
 			{
@@ -269,8 +271,8 @@ void UFlexComponent::Synchronize()
 
 	// update bounds for clothing
 	if (StaticMesh && ContainerInstance && Bounds.SphereRadius > 0.0f && 
-		(FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() || 
-		 FlexAsset->GetClass() == UFlexAssetSoft::StaticClass()))
+		(FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+		 FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		SCOPE_CYCLE_COUNTER(STAT_Flex_UpdateBoundsCpu);
 
@@ -321,7 +323,7 @@ void UFlexComponent::Synchronize()
 
 void UFlexComponent::UpdateSceneProxy(FFlexMeshSceneProxy* Proxy)
 {	
-	if (Proxy && FlexAsset->GetClass() == UFlexAssetSoft::StaticClass())
+	if (Proxy && FlexAsset->IsA(UFlexAssetSoft::StaticClass()))
 	{
 		// copy transforms to render thread
 		const int NumShapes = FlexAsset->ShapeCenters.Num();
@@ -366,7 +368,7 @@ void UFlexComponent::UpdateSceneProxy(FFlexMeshSceneProxy* Proxy)
 	}
 
 	// cloth
-	if (Proxy && FlexAsset->GetClass() == UFlexAssetCloth::StaticClass())
+	if (Proxy && FlexAsset->IsA(UFlexAssetCloth::StaticClass()))
 	{
 		// Enqueue command to send to render thread
 		ENQUEUE_UNIQUE_RENDER_COMMAND_ONEPARAMETER(
@@ -388,8 +390,8 @@ void UFlexComponent::SendRenderDynamicData_Concurrent()
 
 FBoxSphereBounds UFlexComponent::CalcBounds(const FTransform & LocalToWorld) const
 {
-	if (StaticMesh && ContainerInstance && Bounds.SphereRadius > 0.0f && (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() || 
-																		  FlexAsset->GetClass() == UFlexAssetSoft::StaticClass()))
+	if (StaticMesh && ContainerInstance && Bounds.SphereRadius > 0.0f && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+																		  FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		return LocalBounds.TransformBy(LocalToWorld);
 	}
@@ -495,8 +497,8 @@ void UFlexComponent::EnableSim()
 
 FMatrix UFlexComponent::GetRenderMatrix() const
 {
-	if (ContainerInstance && StaticMesh && (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() || 
-										    FlexAsset->GetClass() == UFlexAssetSoft::StaticClass()))
+	if (ContainerInstance && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+										    FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		// particles are simulated in world space
 		return FMatrix::Identity;
@@ -509,8 +511,8 @@ FMatrix UFlexComponent::GetRenderMatrix() const
 FPrimitiveSceneProxy* UFlexComponent::CreateSceneProxy()
 {
 	// if this component has a flex asset then use the subtitute scene proxy for rendering (cloth and soft bodies only)
-	if (ContainerInstance && StaticMesh && (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() ||
-											FlexAsset->GetClass() == UFlexAssetSoft::StaticClass()))
+	if (ContainerInstance && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
+											FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		FFlexMeshSceneProxy* Proxy = new FFlexMeshSceneProxy(this);
 		
@@ -526,8 +528,8 @@ FPrimitiveSceneProxy* UFlexComponent::CreateSceneProxy()
 bool UFlexComponent::ShouldRecreateProxyOnUpdateTransform() const
 {
 	// if this component has a flex asset then don't recreate the proxy
-	if (AssetInstance && ContainerInstance && (FlexAsset->GetClass() == UFlexAssetCloth::StaticClass() ||
-											   FlexAsset->GetClass() == UFlexAssetSoft::StaticClass()))
+	if (AssetInstance && ContainerInstance && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
+											   FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		return false;
 	}

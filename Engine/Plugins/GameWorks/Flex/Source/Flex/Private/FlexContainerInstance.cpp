@@ -527,14 +527,26 @@ void FFlexContainerInstance::UpdateCollisionData()
 	INC_DWORD_STAT_BY(STAT_Flex_StaticTriangleCount, TriMeshIndices.Num()/3);
 }
 
-FFlexContainerInstance::FFlexContainerInstance(UFlexContainer* InTemplate, FPhysScene* OwnerScene)
-	: Bounds(FVector(0.0f), FVector(0.0f), 0.0f)
+FFlexContainerInstance::FFlexContainerInstance(UFlexContainer* InTemplate):
+	Container(nullptr),
+	Solver(nullptr),
+	Particles(nullptr),
+	Velocities(nullptr),
+	Normals(nullptr),
+	Phases(nullptr),
+	NumStaticTriangles(0),
+	Bounds(EForceInit::ForceInitToZero),
+	Template(InTemplate),
+	GroupCounter(0),
+	LeftOverTime(0),
+	sGlobalDebugDraw(false),
+
 {
 	INC_DWORD_STAT(STAT_Flex_ContainerCount);
 
 	UE_LOG(LogFlex, Display, TEXT("Creating a FLEX system for..."));
 
-	Template = InTemplate;
+	check(Template != nullptr);
 
 	Solver = flexCreateSolver(Template->MaxParticles, 0);
 	Container = flexExtCreateContainer(Solver, Template->MaxParticles);
@@ -553,13 +565,6 @@ FFlexContainerInstance::FFlexContainerInstance(UFlexContainer* InTemplate, FPhys
 	{
 		SmoothPositions.SetNum(Template->MaxParticles);
 	}
-
-	NumStaticTriangles = 0;
-
-	GroupCounter = 0;
-	LeftOverTime = 0.0f;
-
-	Owner = OwnerScene;
 }
 
 FFlexContainerInstance::~FFlexContainerInstance()
