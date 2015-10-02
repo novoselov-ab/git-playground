@@ -24,6 +24,7 @@ DECLARE_LOG_CATEGORY_EXTERN(LogFlex, Verbose, All);
 #include "FlexMeshSceneProxy.h"
 #include "FlexMeshVertexFactory.h"
 #include "FlexParticleEmitterInstance.h"
+#include "FlexPhase.h"
 #include "FlexRender.h"
 #include "FlexRopeActor.h"
 #include "FlexRopeComponent.h"
