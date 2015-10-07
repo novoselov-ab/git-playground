@@ -1093,9 +1093,13 @@ public:
 
 		if (SoftTransitionScale.IsBound())
 		{
-			const float TransitionSize = ShadowInfo->ComputeTransitionSize();
+			float TransitionSize = ShadowInfo->ComputeTransitionSize();
 
 			//JDM: FIXME - in HW there's a read from a CVar here. Find a better way to do this.
+			if (ShadowInfo->GWData.bHairRenderProjection)
+			{
+				TransitionSize *= 0.1f;
+			}
 
 			SetShaderValue(RHICmdList, ShaderRHI, SoftTransitionScale, FVector(0, 0, 1.0f / TransitionSize));
 		}

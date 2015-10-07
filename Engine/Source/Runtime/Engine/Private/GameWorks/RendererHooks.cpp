@@ -16,11 +16,19 @@ void FRendererHooks::OnRenderVelocitiesInnner(const FViewInfo &View)
 	}
 }
 
-void FRendererHooks::OnRenderBasePassView(FViewInfo &View)
+// void FRendererHooks::OnRenderBasePassView(FViewInfo &View)
+// {
+// 	for (auto callback : RenderBasePassViewCallbacks.getCallbacks())
+// 	{
+// 		callback->getCallback()(View);
+// 	}
+// }
+// 
+void FRendererHooks::OnRenderMidPoint(TArray<FViewInfo> &Views, FRHICommandList &RHICmdList)
 {
-	for (auto callback : RenderBasePassViewCallbacks.getCallbacks())
+	for (auto callback : RenderMidPointCallbacks.getCallbacks())
 	{
-		callback->getCallback()(View);
+		callback->getCallback()(Views, RHICmdList);
 	}
 }
 
@@ -29,6 +37,14 @@ void FRendererHooks::OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandL
 	for (auto callback : RenderBasePassDynamicCallbacks.getCallbacks())
 	{
 		callback->getCallback()(View, RHICmdList);
+	}
+}
+
+void FRendererHooks::OnFirstShadowRender(FRHICommandList &RHICmdList)
+{
+	for (auto callback : FirstShadowRenderCallbacks.getCallbacks())
+	{
+		callback->getCallback()(RHICmdList);
 	}
 }
 

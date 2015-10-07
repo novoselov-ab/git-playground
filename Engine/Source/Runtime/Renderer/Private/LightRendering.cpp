@@ -549,6 +549,10 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 
 		bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
 
+//START:GWGLUE
+		bool bFirstShadowDrawn = false;
+//END:GWGLUE
+
 		// Draw shadowed and light function lights
 		for (int32 LightIndex = AttenuationLightStart; LightIndex < SortedLights.Num(); LightIndex++)
 		{
@@ -572,17 +576,14 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 			{
 				INC_DWORD_STAT(STAT_NumShadowedLights);
 
-				// JDM: FIXME! This seems wrong. It keeps state in the function and only does it's thing on the first light that draws shadows. What is this doing? Is it sane?
-// 				// Clear for hair.
-// 				if (!bClearedHairLightAttenuation)
-// 				{
-// 					bClearedHairLightAttenuation = true;
-// 
-// 					GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
-// 					GSceneRenderTargets.BeginRenderingLightAttenuation(RHICmdList, false);
-// 					RHICmdList.Clear(true, FLinearColor::White, false, 0, false, 0, FIntRect());
-// 					GSceneRenderTargets.LightAttenuation.Swap(GSceneRenderTargets.HairLightAttenuation);
-// 				}
+//START:GWGLUE
+				if (!bFirstShadowDrawn)
+				{
+					bFirstShadowDrawn = true;
+
+					FRendererHooks::get().OnFirstShadowRender(RHICmdList);
+				}
+//END:GWGLUE
 
 
 				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)

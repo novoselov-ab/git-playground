@@ -18,9 +18,14 @@ public:
 
 	void RenderTranslucency(const FViewInfo &View, FRHICommandList& RHICmdList);
 	void RenderBaseView(FViewInfo &View);
+
+	void UpdateHairFlagsAndClearRenderTargets(TArray<FViewInfo> &Views, FRHICommandList& RHICmdList);
+
 	void RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList);
 	void SetHairLightSettings(FVector InDirection, FLinearColor InColor, bool InShadow);
 	void RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
+
+	void ClearHairLightAttenuation(FRHICommandList &RHICmdList);
 
 	void RenderShadowProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, FRHICommandList& RHICmdList);
 
@@ -91,6 +96,7 @@ private:
 	void PostRHIInitLoad();
 	void AllocHairDepthZ(FPooledRenderTargetDesc Desc);
 	void AllocHairLightAttenuation(FPooledRenderTargetDesc Desc);
+	void AllocHairMask(FPooledRenderTargetDesc Desc);
 	void DeallocRenderTargets();
 	void LoadSDKDll();
 };

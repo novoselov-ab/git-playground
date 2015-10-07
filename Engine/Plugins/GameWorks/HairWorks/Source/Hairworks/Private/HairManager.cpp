@@ -38,7 +38,10 @@ FHairManager::FHairManager():
 {
 	FRendererHooks::get().TranslucentViewRenderCallbacks.Add(std::bind(&FHairManager::RenderTranslucency, this, _1, _2), 0);
 	FRendererHooks::get().RenderVelocitiesInnerCallbacks.Add(std::bind(&FHairManager::RenderVelocitiesInner, this, _1), 0);
-	FRendererHooks::get().RenderBasePassViewCallbacks.Add(std::bind(&FHairManager::RenderBaseView, this, _1), 0);
+
+	FRendererHooks::get().RenderMidPointCallbacks.Add(std::bind(&FHairManager::UpdateHairFlagsAndClearRenderTargets, this, _1, _2), 0);
+
+//	FRendererHooks::get().RenderBasePassViewCallbacks.Add(std::bind(&FHairManager::RenderBaseView, this, _1), 0);
 	FRendererHooks::get().RenderBasePassDynamicCallbacks.Add(std::bind(&FHairManager::RenderBasePassDynamic, this, _1, _2), 0);
 	FRendererHooks::get().RenderProjectedShadowDepthDynamicCallbacks.Add(std::bind(&FHairManager::RenderDepthDynamic, this, _1, _2, _3, _4, _5), 0);
 
@@ -46,13 +49,15 @@ FHairManager::FHairManager():
 	FRendererHooks::get().PostVisibilityFrameSetupCallbacks.Add(std::bind(&FHairManager::SortVisibleDynamicPrimitives, this, _1), 0);
 
 	// These are all for shadows, and don't seem to be required!
-// 	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
-// 	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
-// 	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
-// 	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
-// 	FRendererHooks::get().AllocCommonDepthTargetsCallbacks.Add(std::bind(&FHairManager::AllocHairDepthZ, this, _1), 0);
-// 	FRendererHooks::get().AllocLightAttenuationCallbacks.Add(std::bind(&FHairManager::AllocHairLightAttenuation, this, _1), 0);
-// 	FRendererHooks::get().DeallocRenderTargetsCallbacks.Add(std::bind(&FHairManager::DeallocRenderTargets, this), 0);
+	FRendererHooks::get().FirstShadowRenderCallbacks.Add(std::bind(&FHairManager::ClearHairLightAttenuation, this, _1), 0);
+	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
+	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
+	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
+	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
+	FRendererHooks::get().AllocCommonDepthTargetsCallbacks.Add(std::bind(&FHairManager::AllocHairDepthZ, this, _1), 0);
+	FRendererHooks::get().AllocLightAttenuationCallbacks.Add(std::bind(&FHairManager::AllocHairLightAttenuation, this, _1), 0);
+	FRendererHooks::get().AllocSceneColorCallbacks.Add(std::bind(&FHairManager::AllocHairMask, this, _1), 0);
+	FRendererHooks::get().DeallocRenderTargetsCallbacks.Add(std::bind(&FHairManager::DeallocRenderTargets, this), 0);
 
 	RHIInitHandle = FCoreDelegates::OnRHIInit.AddRaw(this, &FHairManager::PostRHIInitLoad);
 	OnExitHandle = FCoreDelegates::OnExit.AddRaw(this, &FHairManager::FreeResources);
@@ -86,6 +91,11 @@ void FHairManager::AllocHairDepthZ(FPooledRenderTargetDesc Desc)
 void FHairManager::AllocHairLightAttenuation(FPooledRenderTargetDesc Desc)
 {
 	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairLightAttenuation, TEXT("HairLightAttenuation"));
+}
+
+void FHairManager::AllocHairMask(FPooledRenderTargetDesc Desc)
+{
+	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairMask, TEXT("HairMask"));
 }
 
 void FHairManager::DeallocRenderTargets()
@@ -300,6 +310,35 @@ void FHairManager::RenderBaseView(FViewInfo &View)
 	}
 }
 
+void FHairManager::UpdateHairFlagsAndClearRenderTargets(TArray<FViewInfo> &Views, FRHICommandList& RHICmdList)
+{
+	bool bHasHair = false;
+
+	for (auto ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		auto& View = Views[ViewIndex];
+
+		for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
+		{
+			auto PrimitiveInfo = View.VisibleDynamicPrimitives[MeshIdx];
+			FPrimitiveViewRelevance& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
+			if (ViewRelevance.GWData.bHair)
+			{
+				View.GWData.bHasHair = true;
+				bHasHair = true;
+				break;
+			}
+		}
+	}
+
+	// Clear hair render targets
+	if (bHasHair && HairMask && HairDepthZ)
+	{
+		SetRenderTarget(RHICmdList, HairMask->GetRenderTargetItem().TargetableTexture, HairDepthZ->GetRenderTargetItem().TargetableTexture, ESimpleRenderTargetMode::EClearColorAndDepth);
+	}
+
+}
+
 void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RHICmdList)
 {
 	// Draw hairs in translucency pass
@@ -363,6 +402,8 @@ void FHairManager::RenderBasePassDynamic(const FViewInfo& View, FRHICommandList&
 {
 	if (View.GWData.bHasHair)
 	{
+		StepSimulation();
+
 #ifdef HW_MSAA
 		bool bMSAA = CVarHairMsaa.GetValueOnRenderThread() == 1;
 		
@@ -431,6 +472,23 @@ void FHairManager::RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimi
 			HairProxy->DrawShadow(ViewMatrices, ShaderDepthBias, InvMaxSubjectDepth);
 		}
 	}
+}
+
+void FHairManager::ClearHairLightAttenuation(FRHICommandList &RHICmdList)
+{
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+
+	// Swap in HairLightAttenuation
+	SceneContext.LightAttenuation.Swap(HairLightAttenuation);
+
+	// Use this to set render target
+	SceneContext.BeginRenderingLightAttenuation(RHICmdList, false);
+
+	// Clear the color, but not the depth or stencil
+	RHICmdList.Clear(true, FLinearColor::White, false, 0, false, 0, FIntRect());
+
+	// Swap back
+	SceneContext.LightAttenuation.Swap(HairLightAttenuation);
 }
 
 void FHairManager::UpdateViewPreShadow(const FProjectedShadowInfo &ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives)

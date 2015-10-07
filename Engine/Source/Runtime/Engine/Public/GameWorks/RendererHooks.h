@@ -32,10 +32,13 @@ public:
 	void OnTranslucentViewRender(const FViewInfo &View, FRHICommandList&);
 	void OnRenderVelocitiesInnner(const FViewInfo &View);
 
-	void OnRenderBasePassView(FViewInfo &View);
+	void OnRenderMidPoint(TArray<FViewInfo> &Views, FRHICommandList &RHICmdList);
+//	void OnRenderBasePassView(FViewInfo &View);
 	void OnRenderBasePassDynamic(const FViewInfo &View, FRHICommandList &RHICmdList);
 	
 	// TODO: Make this interface more consistent.
+	void OnFirstShadowRender(FRHICommandList &RHICmdList);
+
 	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
 	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives);
@@ -63,9 +66,12 @@ public:
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> TranslucentViewRenderCallbacks;
 	FSortedCallbackList<std::function<void(const FViewInfo&)>> RenderVelocitiesInnerCallbacks;
 
-	FSortedCallbackList<std::function<void(FViewInfo&)>> RenderBasePassViewCallbacks;
-	
+	FSortedCallbackList<std::function<void(TArray<FViewInfo> &Views, FRHICommandList&)>> RenderMidPointCallbacks;
+//	FSortedCallbackList<std::function<void(FViewInfo&)>> RenderBasePassViewCallbacks;
+
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> RenderBasePassDynamicCallbacks;
+
+	FSortedCallbackList<std::function<void(FRHICommandList&)>> FirstShadowRenderCallbacks;
 
 	FSortedCallbackList<std::function<void(const FViewInfo*, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator>, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
 
