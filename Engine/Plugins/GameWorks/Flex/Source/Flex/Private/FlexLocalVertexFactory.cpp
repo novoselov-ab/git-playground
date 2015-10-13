@@ -1,4 +1,4 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+#include "FlexPCH.h"
 
 /*=============================================================================
 LocalVertexFactory.cpp: Local vertex factory implementation

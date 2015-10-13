@@ -1,80 +1,8 @@
 #include "FlexPCH.h"
+#include "FlexStats.h"
 
 
 bool FFlexContainerInstance::sGlobalDebugDraw = false;
-
-#if STATS
-
-enum EFlexGpuStats
-{
-	// gpu stats
-	STAT_Flex_ContainerGpuTickTime,
-	STAT_Flex_Predict,
-	STAT_Flex_CreateCellIndices,
-	STAT_Flex_SortCellIndices,		
-	STAT_Flex_CreateGrid,				
-	STAT_Flex_Reorder,					
-	STAT_Flex_CollideParticles,
-	STAT_Flex_CollideConvexes,			
-	STAT_Flex_CollideTriangles,		
-	STAT_Flex_CollideFields,			
-	STAT_Flex_CalculateDensity,		
-	STAT_Flex_SolveDensities,			
-	STAT_Flex_SolveVelocities,			
-	STAT_Flex_SolveShapes,				
-	STAT_Flex_SolveSprings,			
-	STAT_Flex_SolveContacts,			
-	STAT_Flex_SolveInflatables,		
-	STAT_Flex_CalculateAnisotropy,		
-	STAT_Flex_UpdateDiffuse,			
-	STAT_Flex_UpdateTriangles,
-	STAT_Flex_Finalize,				
-	STAT_Flex_UpdateBounds,		
-};
-
-#endif
-
-// CPU stats, use "stat flex" to enable
-DECLARE_CYCLE_STAT(TEXT("Gather Collision Shapes Time (CPU)"), STAT_Flex_GatherCollisionShapes, STATGROUP_Flex);
-DECLARE_CYCLE_STAT(TEXT("Update Collision Shapes Time (CPU)"), STAT_Flex_UpdateCollisionShapes, STATGROUP_Flex);
-DECLARE_CYCLE_STAT(TEXT("Update Actors Time (CPU)"), STAT_Flex_UpdateActors, STATGROUP_Flex);
-DECLARE_CYCLE_STAT(TEXT("Update Data Time (CPU)"), STAT_Flex_DeviceUpdateTime, STATGROUP_Flex);
-DECLARE_CYCLE_STAT(TEXT("Solver Tick Time (CPU)"), STAT_Flex_SolverUpdateTime, STATGROUP_Flex);
-
-// Counters
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Container Count"), STAT_Flex_ContainerCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Instance Count"), STAT_Flex_InstanceCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Particle Count"), STAT_Flex_ParticleCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Spring Count"), STAT_Flex_SpringCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Shape Count"), STAT_Flex_ShapeCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Static Convex Count"), STAT_Flex_StaticConvexCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Static Triangle Count"), STAT_Flex_StaticTriangleCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Force Field Count"), STAT_Flex_ForceFieldCount, STATGROUP_Flex);
-
-// GPU stats, use "stat group enable flexgpu", and "stat flexgpu" to enable via console
-// note that the the GPU counters will introduce significant synchronization overhead
-DECLARE_CYCLE_STAT(TEXT("Predict"), STAT_Flex_Predict, STATGROUP_FlexGpu);
-DECLARE_CYCLE_STAT(TEXT("CreateCellIndices"), STAT_Flex_CreateCellIndices, STATGROUP_FlexGpu);
-DECLARE_CYCLE_STAT(TEXT("SortCellIndices"), STAT_Flex_SortCellIndices, STATGROUP_FlexGpu);		
-DECLARE_CYCLE_STAT(TEXT("CreateGrid"), STAT_Flex_CreateGrid, STATGROUP_FlexGpu);				
-DECLARE_CYCLE_STAT(TEXT("Reorder"), STAT_Flex_Reorder, STATGROUP_FlexGpu);					
-DECLARE_CYCLE_STAT(TEXT("Collide Particles"), STAT_Flex_CollideParticles, STATGROUP_FlexGpu);
-DECLARE_CYCLE_STAT(TEXT("Collide Convexes"), STAT_Flex_CollideConvexes, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Collide Triangles"), STAT_Flex_CollideTriangles, STATGROUP_FlexGpu);		
-DECLARE_CYCLE_STAT(TEXT("Collide Fields"), STAT_Flex_CollideFields, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Calculate Density"), STAT_Flex_CalculateDensity, STATGROUP_FlexGpu);		
-DECLARE_CYCLE_STAT(TEXT("Solve Density"), STAT_Flex_SolveDensities, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Solve Velocities"), STAT_Flex_SolveVelocities, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Solve Shapes"), STAT_Flex_SolveShapes, STATGROUP_FlexGpu);				
-DECLARE_CYCLE_STAT(TEXT("Solve Springs"), STAT_Flex_SolveSprings, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Solve Contacts"), STAT_Flex_SolveContacts, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Solve Inflatables"), STAT_Flex_SolveInflatables, STATGROUP_FlexGpu);		
-DECLARE_CYCLE_STAT(TEXT("Calculate Anisotropy"), STAT_Flex_CalculateAnisotropy, STATGROUP_FlexGpu);		
-DECLARE_CYCLE_STAT(TEXT("Update Diffuse"), STAT_Flex_UpdateDiffuse, STATGROUP_FlexGpu);			
-DECLARE_CYCLE_STAT(TEXT("Finalize"), STAT_Flex_Finalize, STATGROUP_FlexGpu);				
-DECLARE_CYCLE_STAT(TEXT("Update Bounds"), STAT_Flex_UpdateBounds, STATGROUP_FlexGpu);
-DECLARE_CYCLE_STAT(TEXT("Update Triangles"), STAT_Flex_UpdateTriangles, STATGROUP_FlexGpu);
-DECLARE_CYCLE_STAT(TEXT("Total GPU Kernel Time"), STAT_Flex_ContainerGpuTickTime, STATGROUP_FlexGpu);
 
 void FFlexAllocator::ForAnyElementType::MoveToEmpty(ForAnyElementType& Other)
 {
@@ -152,6 +80,8 @@ void FFlexContainerInstance::UpdateCollisionData()
 	// buffer for overlaps
 	TArray<FOverlapResult> Overlaps;
 	TArray<PxShape*> Shapes;
+
+	auto Owner = GWorld->GetPhysicsScene();
 
 	// lock the scene to perform scene queries
 	SCENE_LOCK_READ(Owner->GetPhysXScene(PST_Sync));
@@ -538,9 +468,7 @@ FFlexContainerInstance::FFlexContainerInstance(UFlexContainer* InTemplate):
 	Bounds(EForceInit::ForceInitToZero),
 	Template(InTemplate),
 	GroupCounter(0),
-	LeftOverTime(0),
-	sGlobalDebugDraw(false),
-
+	LeftOverTime(0)
 {
 	INC_DWORD_STAT(STAT_Flex_ContainerCount);
 
@@ -883,71 +811,74 @@ void FFlexContainerInstance::DebugDraw()
 {
 	if (Template->DebugDraw || sGlobalDebugDraw)
 	{
-		// draw instance bounds
-		for (int32 i=0; i < Components.Num(); ++i)
-		{
-			IFlexContainerClient* Component = Components[i];
-			if (!Component->IsEnabled())
-				continue;
-
-			FBoxSphereBounds ComponentBounds = Component->GetBounds();
-
-			DrawDebugBox(Owner->OwningWorld, ComponentBounds.Origin, ComponentBounds.BoxExtent, FColor(0, 255, 0));
-		}
-
-		//draw container bounds
-		DrawDebugBox(Owner->OwningWorld, Bounds.Origin, Bounds.BoxExtent, FColor(255, 255, 255));
-
-		// draw particles
-		const FColor Colors[8] = 
-		{
-			FLinearColor(0.0f, 0.5f, 1.0f).ToFColor(false),
-			FLinearColor(0.797f, 0.354f, 0.000f).ToFColor(false),
-			FLinearColor(0.092f, 0.465f, 0.820f).ToFColor(false),
-			FLinearColor(0.000f, 0.349f, 0.173f).ToFColor(false),
-			FLinearColor(0.875f, 0.782f, 0.051f).ToFColor(false),
-			FLinearColor(0.000f, 0.170f, 0.453f).ToFColor(false),
-			FLinearColor(0.673f, 0.111f, 0.000f).ToFColor(false),
-			FLinearColor(0.612f, 0.194f, 0.394f).ToFColor(false)
-		};
-
-		TArray<int32> ActiveIndices;
-		ActiveIndices.SetNum(Template->MaxParticles);
-
-		int32 NumActive = flexExtGetActiveList(Container, &ActiveIndices[0]);
-			
-		// draw particles colored by phase
-		for (int32 i = 0; i < NumActive; ++i)
-			DrawDebugPoint(Owner->OwningWorld, Particles[ActiveIndices[i]], 10.0f, Colors[Phases[ActiveIndices[i]]%8]);
-
-		// visualize contacts against the environment
-		const int maxContactsPerParticle = 4;
-
-		TArray<FPlane> ContactPlanes;
-		ContactPlanes.SetNum(Template->MaxParticles*maxContactsPerParticle);
-			
-		TArray<int32> ContactIndices;
-		ContactIndices.SetNum(Template->MaxParticles);
-
-		TArray<uint8> ContactCounts;
-		ContactCounts.SetNum(Template->MaxParticles);
-		
-		flexGetContacts(Solver, (float*)&ContactPlanes[0], &ContactIndices[0], &ContactCounts[0], eFlexMemoryHost);
-
-		for (int i=0 ; i < NumActive; ++i)
-		{
-			const int ContactIndex = ContactIndices[ActiveIndices[i]];
-			const unsigned char Count = ContactCounts[ContactIndex];
-
-			const float Scale = 10.0f;
-
-			for (int c=0; c < Count; ++c)
-			{
-				FPlane Plane = ContactPlanes[ContactIndex*maxContactsPerParticle + c];
-
-				DrawDebugLine(Owner->OwningWorld, Particles[ActiveIndices[i]],Particles[ActiveIndices[i]] + FVector(Plane.X, Plane.Y, Plane.Z)*Scale, FColor::Green);
-			}
-		}
+		//JDM: TODO: Restore!
+// 		auto Owner = GWorld->GetPhysicsScene();
+// 
+// 		// draw instance bounds
+// 		for (int32 i=0; i < Components.Num(); ++i)
+// 		{
+// 			IFlexContainerClient* Component = Components[i];
+// 			if (!Component->IsEnabled())
+// 				continue;
+// 
+// 			FBoxSphereBounds ComponentBounds = Component->GetBounds();
+// 
+// 			DrawDebugBox(Owner->OwningWorld, ComponentBounds.Origin, ComponentBounds.BoxExtent, FColor(0, 255, 0));
+// 		}
+// 
+// 		//draw container bounds
+// 		DrawDebugBox(Owner->OwningWorld, Bounds.Origin, Bounds.BoxExtent, FColor(255, 255, 255));
+// 
+// 		// draw particles
+// 		const FColor Colors[8] = 
+// 		{
+// 			FLinearColor(0.0f, 0.5f, 1.0f).ToFColor(false),
+// 			FLinearColor(0.797f, 0.354f, 0.000f).ToFColor(false),
+// 			FLinearColor(0.092f, 0.465f, 0.820f).ToFColor(false),
+// 			FLinearColor(0.000f, 0.349f, 0.173f).ToFColor(false),
+// 			FLinearColor(0.875f, 0.782f, 0.051f).ToFColor(false),
+// 			FLinearColor(0.000f, 0.170f, 0.453f).ToFColor(false),
+// 			FLinearColor(0.673f, 0.111f, 0.000f).ToFColor(false),
+// 			FLinearColor(0.612f, 0.194f, 0.394f).ToFColor(false)
+// 		};
+// 
+// 		TArray<int32> ActiveIndices;
+// 		ActiveIndices.SetNum(Template->MaxParticles);
+// 
+// 		int32 NumActive = flexExtGetActiveList(Container, &ActiveIndices[0]);
+// 			
+// 		// draw particles colored by phase
+// 		for (int32 i = 0; i < NumActive; ++i)
+// 			DrawDebugPoint(Owner->OwningWorld, Particles[ActiveIndices[i]], 10.0f, Colors[Phases[ActiveIndices[i]]%8]);
+// 
+// 		// visualize contacts against the environment
+// 		const int maxContactsPerParticle = 4;
+// 
+// 		TArray<FPlane> ContactPlanes;
+// 		ContactPlanes.SetNum(Template->MaxParticles*maxContactsPerParticle);
+// 			
+// 		TArray<int32> ContactIndices;
+// 		ContactIndices.SetNum(Template->MaxParticles);
+// 
+// 		TArray<uint8> ContactCounts;
+// 		ContactCounts.SetNum(Template->MaxParticles);
+// 		
+// 		flexGetContacts(Solver, (float*)&ContactPlanes[0], &ContactIndices[0], &ContactCounts[0], eFlexMemoryHost);
+// 
+// 		for (int i=0 ; i < NumActive; ++i)
+// 		{
+// 			const int ContactIndex = ContactIndices[ActiveIndices[i]];
+// 			const unsigned char Count = ContactCounts[ContactIndex];
+// 
+// 			const float Scale = 10.0f;
+// 
+// 			for (int c=0; c < Count; ++c)
+// 			{
+// 				FPlane Plane = ContactPlanes[ContactIndex*maxContactsPerParticle + c];
+// 
+// 				DrawDebugLine(Owner->OwningWorld, Particles[ActiveIndices[i]],Particles[ActiveIndices[i]] + FVector(Plane.X, Plane.Y, Plane.Z)*Scale, FColor::Green);
+// 			}
+// 		}
 	}
 }
 

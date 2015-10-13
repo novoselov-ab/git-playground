@@ -1,3 +1,5 @@
+#include "FlexPCH.h"
+
 FVertexFactoryShaderParameters* FFlexGPUVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
 {
 	return ShaderFrequency == SF_Vertex ? new FFlexMeshVertexFactoryShaderParameters() : NULL;

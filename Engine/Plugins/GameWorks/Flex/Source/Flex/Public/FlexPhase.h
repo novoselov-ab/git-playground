@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FlexPhase.generated.h"
+
 /** Defines flags that control how the particle behaves */
 USTRUCT()
 struct FFlexPhase

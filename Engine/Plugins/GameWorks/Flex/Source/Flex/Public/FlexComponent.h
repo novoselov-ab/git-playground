@@ -54,7 +54,7 @@ public:
 	FlexExtInstance* AssetInstance;
 
 	/* The simulation container the instance belongs to */
-	FFlexContainerInstance* ContainerInstance;
+	TSharedPtr<FFlexContainerInstance> ContainerInstance;
 
 	/* Simulated particle positions  */
 	TArray<FVector4> SimPositions;

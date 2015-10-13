@@ -1,4 +1,5 @@
 #include "FlexPCH.h"
+#include "FlexStats.h"
 
 // Overrides local vertex factory with CPU skinned deformation
 FFlexCPUVertexFactory::FFlexCPUVertexFactory(const FLocalVertexFactory& Base, int NumVerts)

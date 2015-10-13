@@ -8,6 +8,7 @@
 DECLARE_LOG_CATEGORY_EXTERN(LogFlex, Verbose, All);
 
 #include "FlexModule.h"
+#include "FlexStats.h"
 
 #include "FlexActor.h"
 #include "FlexAsset.h"
@@ -19,10 +20,11 @@ DECLARE_LOG_CATEGORY_EXTERN(LogFlex, Verbose, All);
 #include "FlexContainerFactory.h"
 #include "FlexContainerInstance.h"
 #include "FlexCPUVertexFactory.h"
+#include "FlexGlobalDataActor.h"
 #include "FlexGPUVertexFactory.h"
 #include "FlexLocalVertexFactory.h"
 #include "FlexMeshSceneProxy.h"
-#include "FlexMeshVertexFactory.h"
+#include "FlexMeshVertexFactoryShaderParameters.h"
 #include "FlexParticleEmitterInstance.h"
 #include "FlexPhase.h"
 #include "FlexRender.h"

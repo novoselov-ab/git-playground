@@ -7,7 +7,7 @@ struct FFlexParticleEmitterInstance : public FParticleEmitterInstance, public IF
 	FFlexParticleEmitterInstance();
 	virtual ~FFlexParticleEmitterInstance();
 
-	UParticleModuleTypeDataFlex* FlexTypeData;
+	class UParticleModuleTypeDataFlex* FlexTypeData;
 
 	FFlexContainerInstance* Container;
 	int32 Phase;

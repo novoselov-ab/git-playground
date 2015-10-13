@@ -1,5 +1,6 @@
 #pragma once
 #include "Particles/TypeData/ParticleModuleTypeDataBase.h"
+#include "ParticleModuleTypeDataFlex.generated.h"
 
 UCLASS(MinimalAPI, editinlinenew, hidecategories = Object, meta = (DisplayName = "AnimTrail Data"))
 class UParticleModuleTypeDataFlex : public UParticleModuleTypeDataBase

@@ -1,4 +1,5 @@
 #include "FlexPCH.h"
+#include "PhysicsHooks.h"
 
 AFlexGlobalDataActor::AFlexGlobalDataActor(const FObjectInitializer &ObjectInitializer):
 	AActor(ObjectInitializer)
@@ -17,11 +18,12 @@ AFlexGlobalDataActor::~AFlexGlobalDataActor()
 
 TSharedPtr<FFlexContainerInstance> AFlexGlobalDataActor::GetContainerInstance(UFlexContainer *ContainerTypeKey)
 {
-	auto instance = FlexContainerMap.Find(ContainerTypeKey);
+	TSharedPtr<FFlexContainerInstance> instance = FlexContainerMap.Find(ContainerTypeKey);
 
-	if (!instance)
+	if (!instance.IsValid())
 	{
-		instance = MakeShareable<FFlexContainerInstance>()
+		instance = MakeShareable<FFlexContainerInstance>(new FFlexContainerInstance(ContainerTypeKey));
+		FlexContainerMap.Add(ContainerTypeKey, instance);
 	}
 
 	return *instance;
@@ -29,7 +31,7 @@ TSharedPtr<FFlexContainerInstance> AFlexGlobalDataActor::GetContainerInstance(UF
 
 AFlexGlobalDataActor* AFlexGlobalDataActor::GetGlobalDataActorFromWorld(UWorld *World)
 {
-	auto GlobalDataActor = nullptr;
+	AFlexGlobalDataActor* GlobalDataActor = nullptr;
 
 	// Get the global data actor, if it's in the scene.
 	for (TActorIterator<AFlexGlobalDataActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -49,12 +51,11 @@ AFlexGlobalDataActor* AFlexGlobalDataActor::GetGlobalDataActorFromWorld(UWorld *
 	return GlobalDataActor;
 }
 
-void AFlexGlobalDataActor::PostSpawnInitialize(FTransform const& SpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction)
+void AFlexGlobalDataActor::PostInitializeComponents()
 {
-	Super::PostSpawnInitialize(SpawnTransform, InOwner, InInstigator, bRemoteOwned, bNoFail, bDeferConstruction);
+	Super::PostInitializeComponents();
 
-	PostFrameCallbackHandle = FPhysicsHooks::get().PhysicsSceneEndOfStartFrameCallbacks.Add(std::bind(&AFlexGlobalDataActor::TickFlexScenes, this, _1), 0);
-
+	PostFrameCallbackHandle = FPhysicsHooks::get().PhysicsSceneEndOfStartFrameCallbacks.Add(std::bind(&AFlexGlobalDataActor::TickFlexScenes, this, std::placeholders::_1), 0);
 }
 
 void AFlexGlobalDataActor::TickFlexScenes(float DeltaSeconds)

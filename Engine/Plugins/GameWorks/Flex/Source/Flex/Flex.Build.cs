@@ -48,12 +48,12 @@ namespace UnrealBuildTool.Rules
 				    "AssetRegistry"
 			    });
 
-		    DynamicallyLoadedModuleNames.AddRange(
+/* 		    DynamicallyLoadedModuleNames.AddRange(
 			    new string[] {
 				    "AssetTools",
 				    "AssetRegistry"
 			    });
-
+ */
 
             // Add the 3 dlls to RuntimeDependencies so that they are copied when packaging.
             if (Target.Platform == UnrealTargetPlatform.Win32)

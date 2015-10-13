@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FlexGlobalDataActor.generated.h"
+
 /*
 	This class will be automatically added to the scene if it doesn't exist, and holds the FlexContainerInstances that are present in the scene.
 
@@ -7,7 +9,7 @@
 UCLASS()
 class AFlexGlobalDataActor : public AActor
 {
-	GENERATED_BODY();
+	GENERATED_BODY()
 public:
 	AFlexGlobalDataActor(const FObjectInitializer &ObjectInitializer);
 	virtual ~AFlexGlobalDataActor();
@@ -21,7 +23,7 @@ public:
 	// TODO: Force applications
 
 	// Hook the event at the end of FPhysScene StartFrame() to drive TickFlexScenes
-	virtual void PostSpawnInitialize(FTransform const& SpawnTransform, AActor* InOwner, APawn* InInstigator, bool bRemoteOwned, bool bNoFail, bool bDeferConstruction) override;
+	virtual void PostInitializeComponents() override;
 
 private:
 

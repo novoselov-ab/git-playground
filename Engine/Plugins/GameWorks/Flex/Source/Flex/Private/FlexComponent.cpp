@@ -1,15 +1,6 @@
 #include "FlexPCH.h"
 #include "PhysicsPublic.h"
-
-#if STATS
-
-DECLARE_CYCLE_STAT(TEXT("Update Bounds (CPU)"), STAT_Flex_UpdateBoundsCpu, STATGROUP_Flex);
-
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Active Mesh Particle Count"), STAT_Flex_ActiveParticleCount, STATGROUP_Flex);
-DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Active Mesh Actor Count"), STAT_Flex_ActiveMeshActorCount, STATGROUP_Flex);
-
-#endif
-
+#include "FlexStats.h"
 
 UFlexComponent::UFlexComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -62,9 +53,9 @@ void UFlexComponent::OnRegister()
 
 			check(GlobalDataActor);
 
-			FFlexContainerInstance* Container = GlobalDataActor->GetContainerInstance(ContainerTemplate);
+			TSharedPtr<FFlexContainerInstance> Container = GlobalDataActor->GetContainerInstance(ContainerTemplate);
 
-			check(Container);
+			check(Container.IsValid());
 
 			ContainerInstance = Container;
 
@@ -151,7 +142,7 @@ void UFlexComponent::OnUnregister()
 {
 	Super::OnUnregister();
 
-	if (ContainerInstance && AssetInstance)
+	if (ContainerInstance.IsValid() && AssetInstance)
 	{
 		DEC_DWORD_STAT_BY(STAT_Flex_ActiveParticleCount, AssetInstance->mNumParticles);
 		DEC_DWORD_STAT(STAT_Flex_ActiveMeshActorCount);
@@ -160,7 +151,7 @@ void UFlexComponent::OnUnregister()
 		AssetInstance = nullptr;
 	}
 
-	if (ContainerInstance)
+	if (ContainerInstance.IsValid())
 	{
 		ContainerInstance->Unregister(this);
 		ContainerInstance = nullptr;
@@ -176,7 +167,7 @@ void UFlexComponent::Synchronize()
 	if (!IsRegistered())
 		return;
 	
-	if (ContainerInstance && AssetInstance)
+	if (ContainerInstance.IsValid() && AssetInstance)
 	{
 		// process attachments
 		for (int AttachmentIndex=0; AttachmentIndex < Attachments.Num(); )
@@ -270,7 +261,7 @@ void UFlexComponent::Synchronize()
 	EnableSim();
 
 	// update bounds for clothing
-	if (StaticMesh && ContainerInstance && Bounds.SphereRadius > 0.0f && 
+	if (StaticMesh && ContainerInstance.IsValid() && Bounds.SphereRadius > 0.0f &&
 		(FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
 		 FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
@@ -390,7 +381,7 @@ void UFlexComponent::SendRenderDynamicData_Concurrent()
 
 FBoxSphereBounds UFlexComponent::CalcBounds(const FTransform & LocalToWorld) const
 {
-	if (StaticMesh && ContainerInstance && Bounds.SphereRadius > 0.0f && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+	if (StaticMesh && ContainerInstance.IsValid() && Bounds.SphereRadius > 0.0f && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
 																		  FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		return LocalBounds.TransformBy(LocalToWorld);
@@ -404,7 +395,7 @@ FBoxSphereBounds UFlexComponent::CalcBounds(const FTransform & LocalToWorld) con
 
 void UFlexComponent::DisableSim()
 {
-	if (ContainerInstance && AssetInstance)
+	if (ContainerInstance.IsValid() && AssetInstance)
 	{
 		DEC_DWORD_STAT_BY(STAT_Flex_ActiveParticleCount, AssetInstance->mNumParticles);
 		DEC_DWORD_STAT(STAT_Flex_ActiveMeshActorCount);
@@ -416,7 +407,7 @@ void UFlexComponent::DisableSim()
 
 void UFlexComponent::EnableSim()
 {
-	if (ContainerInstance && !AssetInstance)
+	if (ContainerInstance.IsValid() && !AssetInstance)
 	{
 		// SimPositions count can be zero if asset internal FlexExtObject creation failed.
 		if (SimPositions.Num() == 0)
@@ -497,7 +488,7 @@ void UFlexComponent::EnableSim()
 
 FMatrix UFlexComponent::GetRenderMatrix() const
 {
-	if (ContainerInstance && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) || 
+	if (ContainerInstance.IsValid() && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
 										    FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		// particles are simulated in world space
@@ -511,7 +502,7 @@ FMatrix UFlexComponent::GetRenderMatrix() const
 FPrimitiveSceneProxy* UFlexComponent::CreateSceneProxy()
 {
 	// if this component has a flex asset then use the subtitute scene proxy for rendering (cloth and soft bodies only)
-	if (ContainerInstance && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
+	if (ContainerInstance.IsValid() && StaticMesh && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
 											FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		FFlexMeshSceneProxy* Proxy = new FFlexMeshSceneProxy(this);
@@ -528,7 +519,7 @@ FPrimitiveSceneProxy* UFlexComponent::CreateSceneProxy()
 bool UFlexComponent::ShouldRecreateProxyOnUpdateTransform() const
 {
 	// if this component has a flex asset then don't recreate the proxy
-	if (AssetInstance && ContainerInstance && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
+	if (AssetInstance && ContainerInstance.IsValid() && (FlexAsset->IsA(UFlexAssetCloth::StaticClass()) ||
 											   FlexAsset->IsA(UFlexAssetSoft::StaticClass())) )
 	{
 		return false;

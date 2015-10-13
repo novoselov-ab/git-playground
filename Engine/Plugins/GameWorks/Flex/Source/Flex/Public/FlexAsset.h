@@ -1,5 +1,7 @@
 #pragma once
 
+#include "FlexPhase.h"
+
 #include "FlexAsset.generated.h"
 
 // Flex extensions types
@@ -20,8 +22,6 @@ public:
 
 	UFlexAsset(const FObjectInitializer& ObjectInitializer);
 	virtual ~UFlexAsset() = default;
-
-
 
 	/** The simulation container to spawn any flex data contained in the static mesh into */
 	UPROPERTY(EditAnywhere, Category = Flex, meta = (ToolTip = "If the static mesh has Flex data then it will be spawned into this simulation container."))
@@ -83,7 +83,7 @@ public:
 	virtual void ReImport(const UStaticMesh* Parent) {}
 	virtual FlexExtAsset* GetFlexAsset() { return nullptr; }
 
-private:
+protected:
 	//
 	FlexExtAsset* Asset;
 

@@ -9,9 +9,9 @@ void FFlexModule::StartupModule()
 	FString DllPath = FPaths::EngineDir() / TEXT("Plugins/GameWorks/Flex/Libraries/Win64/");
 
 	auto loadDll = [](FString rootPath, FString dll) -> void * {
-		FPlatformProcess::PushDllDirectory(*DllPath);
+		FPlatformProcess::PushDllDirectory(*rootPath);
 		auto dllHandle = FPlatformProcess::GetDllHandle(*(rootPath + dll));
-		FPlatformProcess::PopDllDirectory(*DllPath);
+		FPlatformProcess::PopDllDirectory(*rootPath);
 
 		return dllHandle;
 	};
