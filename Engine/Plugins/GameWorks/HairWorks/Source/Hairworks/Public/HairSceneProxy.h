@@ -26,6 +26,7 @@ public:
 	void DrawVelocity(const FSceneView& View, const FViewMatrices& PrevViewMatrices);
 
 
+	void DrawToGBuffers(const FSceneView& View);
 
 	// This is a cached copy of the hair descriptor that's updated every time HairProperties changes.
 	GFSDK_HairInstanceDescriptor	CachedHairDescriptor;

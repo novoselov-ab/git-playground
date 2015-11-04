@@ -47,7 +47,7 @@ void FHairSceneProxy::UpdateShaderCache()
 	GHairManager->GetHairworksSdk()->AddToShaderCache(ShaderCacheSetting);
 }
 
-void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3])
+void FHairSceneProxy::DrawToGBuffers(const FSceneView& View)
 {
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
@@ -70,20 +70,15 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	// Set states
 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
-	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<true>::GetRHI());
-
-	RHICmdList.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI());
+// 	//JDM:FIXME: Supposed to have depth write
+// 	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
+// 
+// 	RHICmdList.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI());
 
 	// Pass camera inforamtin
 	auto ViewMatrices = View.ViewMatrices;
 
-	// Remove temporal AA jitter.
-// 	if (!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
-// 	{
-// 		ViewMatrices.ProjMatrix.M[2][0] = 0.0f;
-// 		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
-// 	}
-	
+
 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
 
 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
@@ -107,7 +102,7 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	HairWorksSdk->PrepareShaderConstantBuffer(HairInstanceId, &ConstBuffer);
 
 	HairTextures.SetNum(GFSDK_HAIR_NUM_TEXTURES, false);
-	PixelShader->SetParameters(RHICmdList, View, reinterpret_cast<GFSDK_Hair_ConstantBuffer&>(ConstBuffer), HairTextures, LightDir, LightColor, LightAttenuation, IndirectLight);
+	PixelShader->SetParameters(RHICmdList, View, reinterpret_cast<GFSDK_Hair_ConstantBuffer&>(ConstBuffer), HairTextures);
 
 	// To update shader states
 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
@@ -125,159 +120,242 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 	HairWorksSdk->RenderVisualization(HairInstanceId);
 }
 
+void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3])
+{
+	return;
+
+// 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
+// 		return;
+// 
+// 	// Update parameters
+// 	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+// 	CachedHairDescriptor.m_useViewfrustrumCulling = false;
+// 
+// #if WITH_EDITOR
+// 
+// 	// Take a copy since the CVars are going to mess with it.
+// 	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
+// 
+// 	// Pass rendering parameters
+// 	GHairManager->UpdateHairInstanceDescriptor(HairInstanceId, HairDesc);
+// #else
+// 	GHairManager->GetHairworksSdk()->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+// #endif
+// 
+// 	// Set states
+// 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+// 
+// 	//JDM:FIXME: Supposed to have depth write
+// 	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
+// 
+// 	RHICmdList.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI());
+// 
+// 	// Pass camera inforamtin
+// 	auto ViewMatrices = View.ViewMatrices;
+// 
+// 	
+// 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+// 
+// 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+// 
+// 	// Setup shaders
+// 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	TShaderMapRef<FHairWorksPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 
+// 	static FGlobalBoundShaderState BoundShaderState;
+// 
+// 	SetGlobalBoundShaderState(
+// 		RHICmdList,
+// 		ERHIFeatureLevel::SM5,
+// 		BoundShaderState,
+// 		GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+// 		*VertexShader,
+// 		*PixelShader
+// 		);
+// 
+// 	GFSDK_HairShaderConstantBuffer ConstBuffer;
+// 	HairWorksSdk->PrepareShaderConstantBuffer(HairInstanceId, &ConstBuffer);
+// 
+// 	HairTextures.SetNum(GFSDK_HAIR_NUM_TEXTURES, false);
+// 	PixelShader->SetParameters(RHICmdList, View, reinterpret_cast<GFSDK_Hair_ConstantBuffer&>(ConstBuffer), HairTextures, LightDir, LightColor, LightAttenuation, IndirectLight);
+// 
+// 	// To update shader states
+// 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
+// 
+// 	// Draw
+// 	GFSDK_HairShaderSettings HairShaderSettings;
+// 	HairShaderSettings.m_useCustomConstantBuffer = true;
+// 
+// 	ID3D11ShaderResourceView* HairSrvs[GFSDK_HAIR_NUM_SHADER_RESOUCES];
+// 	HairWorksSdk->GetShaderResources(HairInstanceId, HairSrvs);
+// 	auto& D3d11Rhi = static_cast<FD3D11DynamicRHI&>(*GDynamicRHI);
+// 	D3d11Rhi.GetDeviceContext()->PSSetShaderResources(10, GFSDK_HAIR_NUM_SHADER_RESOUCES, HairSrvs);
+// 
+// 	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+// 	HairWorksSdk->RenderVisualization(HairInstanceId);
+}
+
 void FHairSceneProxy::DrawShadow(const FViewMatrices& ViewMatrices, float DepthBias, float DepthScale)
 {
-	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
-		return;
+	return;
 
-	auto HairWorksSdk = GHairManager->GetHairworksSdk();
-
-	// JDM: GROSS! - GET RID OF THIS. Need another member in the config that encapsulates this, since the shader already knows it's a shadow render.
-	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
-
-	HairDesc.m_width *= GHairManager->CVarHairShadowWidthScale.GetValueOnRenderThread();
-	HairDesc.m_useBackfaceCulling = false;
-
-	// Update parameters
-	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
-	HairDesc.m_useViewfrustrumCulling = false;
-
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
-
-
-	
-	// Pass camera inforamtin
-	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
-
-	// Set shaders.
-	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-	TShaderMapRef<FHairWorksShadowDepthPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-
-	static FGlobalBoundShaderState BoundShaderState;
-	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
-		*VertexShader, *PixelShader);
-
-	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->ShadowParams, FVector2D(DepthBias * GHairManager->CVarHairShadowBiasScale.GetValueOnRenderThread(), DepthScale));
-
-	// To update shader states
-	RHICmdList.DrawPrimitive(0, 0, 0, 0);
-
-// 	// Handle shader cache
-// 	UpdateShaderCache();
-
-	// Draw
-	GFSDK_HairShaderSettings HairShaderSettings;
-	HairShaderSettings.m_useCustomConstantBuffer = true;
-	HairShaderSettings.m_shadowPass = true;
-
-	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+// 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
+// 		return;
+// 
+// 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+// 
+// 	// JDM: GROSS! - GET RID OF THIS. Need another member in the config that encapsulates this, since the shader already knows it's a shadow render.
+// 	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
+// 
+// 	HairDesc.m_width *= GHairManager->CVarHairShadowWidthScale.GetValueOnRenderThread();
+// 	HairDesc.m_useBackfaceCulling = false;
+// 
+// 	// Update parameters
+// 	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+// 	HairDesc.m_useViewfrustrumCulling = false;
+// 
+// 	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
+// 
+// 
+// 	
+// 	// Pass camera inforamtin
+// 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+// 
+// 	// Set shaders.
+// 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+// 
+// 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	TShaderMapRef<FHairWorksShadowDepthPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 
+// 	static FGlobalBoundShaderState BoundShaderState;
+// 	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+// 		*VertexShader, *PixelShader);
+// 
+// 	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->ShadowParams, FVector2D(DepthBias * GHairManager->CVarHairShadowBiasScale.GetValueOnRenderThread(), DepthScale));
+// 
+// 	// To update shader states
+// 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
+// 
+// // 	// Handle shader cache
+// // 	UpdateShaderCache();
+// 
+// 	// Draw
+// 	GFSDK_HairShaderSettings HairShaderSettings;
+// 	HairShaderSettings.m_useCustomConstantBuffer = true;
+// 	HairShaderSettings.m_shadowPass = true;
+// 
+// 	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
 }
 
 void FHairSceneProxy::DrawBasePass(const FSceneView& View)
 {
-	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
-		return;
+	return;
 
-	auto HairWorksSdk = GHairManager->GetHairworksSdk();
-	
-	// Update parameters
-	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
-	CachedHairDescriptor.m_useViewfrustrumCulling = false;
-
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
-
-	// Pass camera inforamtin
-	auto ViewMatrices = View.ViewMatrices;
-
-	// Remove temporal AA jitter.
-	if (!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
-	{
-		ViewMatrices.ProjMatrix.M[2][0] = 0.0f;
-		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
-	}
-
-
-	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
-
-	// Set render states
-	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	RHICmdList.SetBlendState(TStaticBlendState<>::GetRHI());
-	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<>::GetRHI());
-
-	// Set shaders
-	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-	TShaderMapRef<FHairWorksSimplePs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-	static FGlobalBoundShaderState BoundShaderState;
-	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
-		*VertexShader, *PixelShader);
-
-	// Draw
-	GFSDK_HairShaderSettings HairShaderSettings;
-	HairShaderSettings.m_useCustomConstantBuffer = true;
-
-	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+// 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
+// 		return;
+// 
+// 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+// 	
+// 	// Update parameters
+// 	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+// 	CachedHairDescriptor.m_useViewfrustrumCulling = false;
+// 
+// 	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+// 
+// 	// Pass camera inforamtin
+// 	auto ViewMatrices = View.ViewMatrices;
+// 
+// 	// Remove temporal AA jitter.
+// 	if (!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
+// 	{
+// 		ViewMatrices.ProjMatrix.M[2][0] = 0.0f;
+// 		ViewMatrices.ProjMatrix.M[2][1] = 0.0f;
+// 	}
+// 
+// 
+// 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+// 
+// 	// Set render states
+// 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+// 
+// 	RHICmdList.SetBlendState(TStaticBlendState<>::GetRHI());
+// 	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<>::GetRHI());
+// 
+// 	// Set shaders
+// 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	TShaderMapRef<FHairWorksSimplePs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	static FGlobalBoundShaderState BoundShaderState;
+// 	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+// 		*VertexShader, *PixelShader);
+// 
+// 	// Draw
+// 	GFSDK_HairShaderSettings HairShaderSettings;
+// 	HairShaderSettings.m_useCustomConstantBuffer = true;
+// 
+// 	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
 }
 
 void FHairSceneProxy::DrawVelocity(const FSceneView& View, const FViewMatrices& PrevViewMatrices)
 {
-	// Remove temporal AA jitter.
-	if(!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
-		return;
+	return;
 
-	if (!GHairManager->CVarHairOutputVelocity.GetValueOnRenderThread())
-		return;
-
-	if(HairInstanceId == GFSDK_HairInstanceID_NULL)
-		return;
-
-	auto HairWorksSdk = GHairManager->GetHairworksSdk();
-
-	// Update parameters
-	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
-	CachedHairDescriptor.m_useViewfrustrumCulling = false;
-
-	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
-
-
-	// Pass camera inforamtin
-	const auto& ViewMatrices = View.ViewMatrices;
-	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
-	HairWorksSdk->SetPrevViewProjection((gfsdk_float4x4*)PrevViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)PrevViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
-
-	// Set render states
-	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-
-	RHICmdList.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
-	RHICmdList.SetBlendState(TStaticBlendState<>::GetRHI());
-	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<true>::GetRHI());
-
-	// Set shaders
-	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-	TShaderMapRef<FHairWorksVelocityPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-	static FGlobalBoundShaderState BoundShaderState;
-	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
-		*VertexShader, *PixelShader);
-
-	GFSDK_HairShaderConstantBuffer ConstBuffer;
-	HairWorksSdk->PrepareShaderConstantBuffer(HairInstanceId, &ConstBuffer);
-	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->HairConstantBuffer, reinterpret_cast<GFSDK_Hair_ConstantBuffer&>(ConstBuffer));
-
-	// To update shader states
-	RHICmdList.DrawPrimitive(0, 0, 0, 0);
-
-	// Draw
-	GFSDK_HairShaderSettings HairShaderSettings;
-	HairShaderSettings.m_useCustomConstantBuffer = true;
-
-	ID3D11ShaderResourceView* HairSrvs[GFSDK_HAIR_NUM_SHADER_RESOUCES];
-	HairWorksSdk->GetShaderResources(HairInstanceId, HairSrvs);
-	auto& D3d11Rhi = static_cast<FD3D11DynamicRHI&>(*GDynamicRHI);
-	D3d11Rhi.GetDeviceContext()->PSSetShaderResources(10, GFSDK_HAIR_NUM_SHADER_RESOUCES, HairSrvs);
-
-	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+// 	// Remove temporal AA jitter.
+// 	if(!GHairManager->CVarHairTemporalAa.GetValueOnRenderThread())
+// 		return;
+// 
+// 	if (!GHairManager->CVarHairOutputVelocity.GetValueOnRenderThread())
+// 		return;
+// 
+// 	if(HairInstanceId == GFSDK_HairInstanceID_NULL)
+// 		return;
+// 
+// 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+// 
+// 	// Update parameters
+// 	CachedHairDescriptor.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+// 	CachedHairDescriptor.m_useViewfrustrumCulling = false;
+// 
+// 	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
+// 
+// 
+// 	// Pass camera inforamtin
+// 	const auto& ViewMatrices = View.ViewMatrices;
+// 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+// 	HairWorksSdk->SetPrevViewProjection((gfsdk_float4x4*)PrevViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)PrevViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+// 
+// 	// Set render states
+// 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+// 
+// 	RHICmdList.SetBlendState(TStaticBlendState<CW_NONE>::GetRHI());
+// 	RHICmdList.SetBlendState(TStaticBlendState<>::GetRHI());
+// 
+// 	//JDM:FIXME Supposed to have depth write...
+// 	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
+// 
+// 	// Set shaders
+// 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	TShaderMapRef<FHairWorksVelocityPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+// 	static FGlobalBoundShaderState BoundShaderState;
+// 	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+// 		*VertexShader, *PixelShader);
+// 
+// 	GFSDK_HairShaderConstantBuffer ConstBuffer;
+// 	HairWorksSdk->PrepareShaderConstantBuffer(HairInstanceId, &ConstBuffer);
+// 	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->HairConstantBuffer, reinterpret_cast<GFSDK_Hair_ConstantBuffer&>(ConstBuffer));
+// 
+// 	// To update shader states
+// 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
+// 
+// 	// Draw
+// 	GFSDK_HairShaderSettings HairShaderSettings;
+// 	HairShaderSettings.m_useCustomConstantBuffer = true;
+// 
+// 	ID3D11ShaderResourceView* HairSrvs[GFSDK_HAIR_NUM_SHADER_RESOUCES];
+// 	HairWorksSdk->GetShaderResources(HairInstanceId, HairSrvs);
+// 	auto& D3d11Rhi = static_cast<FD3D11DynamicRHI&>(*GDynamicRHI);
+// 	D3d11Rhi.GetDeviceContext()->PSSetShaderResources(10, GFSDK_HAIR_NUM_SHADER_RESOUCES, HairSrvs);
+// 
+// 	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
 }
 
 void FHairSceneProxy::GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, class FMeshElementCollector& Collector) const

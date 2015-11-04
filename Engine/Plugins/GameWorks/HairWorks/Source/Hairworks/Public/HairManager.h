@@ -21,7 +21,9 @@ public:
 
 	void UpdateHairFlagsAndClearRenderTargets(TArray<FViewInfo> &Views, FRHICommandList& RHICmdList);
 
+	void RenderToGBuffers(const FViewInfo& View, FRHICommandList& RHICmdList);
 	void RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList);
+
 	void SetHairLightSettings(FVector InDirection, FLinearColor InColor, bool InShadow);
 	void RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 

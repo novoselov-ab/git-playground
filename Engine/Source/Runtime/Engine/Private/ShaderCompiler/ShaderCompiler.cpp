@@ -1165,7 +1165,7 @@ void FShaderCompilingManager::ProcessCompiledShaderMaps(
 				{
 					for (int32 ErrorIndex = 0; ErrorIndex < CurrentJob.Output.Errors.Num(); ErrorIndex++)
 					{
-						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].StrippedErrorMessage);
+						Errors.AddUnique(CurrentJob.Output.Errors[ErrorIndex].GetErrorString());
 					}
 				}
 			}
@@ -1788,6 +1788,12 @@ void GlobalBeginCompileShader(
 	Input.SourceFilename = SourceFilename;
 	Input.EntryPointName = FunctionName;
 	Input.DumpDebugInfoRootPath = GShaderCompilingManager->GetAbsoluteShaderDebugInfoDirectory() / Input.ShaderFormat.ToString();
+
+//START:GWGLUE
+	Input.AlternateShaderPaths = GetAlternateShaderPaths();
+//END:GWGLUE
+
+	UE_LOG(LogTemp, Log, TEXT("Setting up compile job. Source: %s"), *Input.SourceFilename);
 
 	if (GDumpShaderDebugInfo != 0)
 	{

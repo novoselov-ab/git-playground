@@ -449,6 +449,9 @@ void CompileD3D11Shader(const FShaderCompilerInput& Input,FShaderCompilerOutput&
 		{
 			FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / Input.SourceFilename + TEXT(".usf")));
 
+			auto debug = FString::Printf(TEXT("Writing %s debug stuff. SFL: %d") , *Input.SourceFilename, PreprocessedShaderSource.Len());
+			FFileHelper::SaveStringToFile(debug, *(Input.DumpDebugInfoPath / TEXT("Debug.txt")));
+
 			if (FileWriter)
 			{
 				FileWriter->Serialize((ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length());

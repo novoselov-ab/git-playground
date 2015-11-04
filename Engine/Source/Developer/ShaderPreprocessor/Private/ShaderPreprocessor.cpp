@@ -37,6 +37,11 @@ public:
 			InputShaderFile += TEXT(".usf");
 		}
 
+//START:GWGLUE
+// Inject the alternate shader paths that were set by plugins in the main UE4 process, since this preprocessor is running in a ShaderCompileWorker, most likely.
+		SetAlternateShaderPaths(InShaderInput.AlternateShaderPaths);
+//END:GWGLUE
+
 		FString InputShaderSource;
 		if (LoadShaderSourceFile(*ShaderInput.SourceFilename,InputShaderSource))
 		{
@@ -135,6 +140,8 @@ bool PreprocessShader(
 	FScopeLock McppLock(&McppCriticalSection);
 
 	FMcppFileLoader FileLoader(ShaderInput);
+
+	UE_LOG(LogTemp, Log, TEXT("Doing preprocess step for file %s"), *FileLoader.GetInputShaderFilename());
 
 	AddMcppDefines(McppOptions, ShaderInput.Environment.GetDefinitions());
 	AddMcppDefines(McppOptions, AdditionalDefines.GetDefinitionMap());

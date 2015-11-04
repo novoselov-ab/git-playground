@@ -4,6 +4,7 @@
 #include "ReflectionEnvironmentShared.usf"
 #include "BRDF.usf"
 #include "SHCommon.usf"
+#include "DeferredShadingCommon.usf"		// FGBufferData
 struct FVertexFactoryInterpolantsVSToPS
 {};
 #include "ShadowDepthCommon.usf"
@@ -11,11 +12,6 @@ struct FVertexFactoryInterpolantsVSToPS
 #define GFSDK_HAIR_DECLARE_VELOCITY_ATTR
 
 #include "GFSDK_HairWorks_ShaderCommon.usf"
-
-float4 IndirectLightingSHCoefficients[3];
-
-float3 LightDir;
-float3 LightColor;
 
 GFSDK_Hair_ConstantBuffer HairConstantBuffer;
 
@@ -26,67 +22,36 @@ Texture2D TipColorTexture;
 Texture2D SpecularColorTexture;
 
 GFSDK_HAIR_DECLARE_SHADER_RESOURCES(t10, t11, t12, t13, t14);
+ 
+void Main(
+	GFSDK_Hair_PixelShaderInput input
+	,out float4 OutColor		: SV_Target0
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !NO_GBUFFER
+	,out float4 OutGBufferA : SV_Target1 
+	,out float4 OutGBufferB : SV_Target2
+	,out float4 OutGBufferC : SV_Target3
+	,out float4 OutGBufferD : SV_Target4
+	#if ALLOW_STATIC_LIGHTING
+		,out float4 OutGBufferE : SV_Target5
+		#if WRITES_VELOCITY_TO_GBUFFER
+			, out float4 OutGBufferVelocity : SV_Target6
+		#endif
+	#else
+		#if WRITES_VELOCITY_TO_GBUFFER
+			, out float4 OutGBufferVelocity : SV_Target5
+		#endif
+	#endif
+#endif
 
-struct MainOut
-{
-	float4 Color : SV_Target0;
-};
-
-MainOut Main(GFSDK_Hair_PixelShaderInput input)
+)
 {
 	// Shader attributes
 	GFSDK_Hair_ShaderAttributes shaderAttributes = GFSDK_Hair_GetShaderAttributes(input, HairConstantBuffer);
 
+	// JDM: What is this doing every pixel? Why is it writing to a "constant buffer"?
 	// Setup material
 	if (HairConstantBuffer.useSpecularTexture)
 		HairConstantBuffer.defaultMaterial.specularColor.rgb = SpecularColorTexture.SampleLevel(TextureSampler, shaderAttributes.texcoords.xy, 0).rgb;
-
-	// Diffuse
-	float diffuse = GFSDK_Hair_ComputeHairDiffuseShading(
-		LightDir, 
-		shaderAttributes.T, 
-		shaderAttributes.N, 
-		HairConstantBuffer.defaultMaterial.diffuseScale,
-		HairConstantBuffer.defaultMaterial.diffuseBlend
-		);
-
-	// Indirect light
-	float3 IndirectLight = 0;
-	{
-		FTwoBandSHVectorRGB PointIndirectLighting;
-		PointIndirectLighting.R.V = IndirectLightingSHCoefficients[0];
-		PointIndirectLighting.G.V = IndirectLightingSHCoefficients[1];
-		PointIndirectLighting.B.V = IndirectLightingSHCoefficients[2];
-
-		FTwoBandSHVector DiffuseTransferSH = CalcDiffuseTransferSH(shaderAttributes.N.xyz, 1);
-		IndirectLight = max(half3(0, 0, 0), DotSH(PointIndirectLighting, DiffuseTransferSH));
-
-		IndirectLight *= View.IndirectLightingColorScale;
-	}
-
-	// Sky light
-	float3 sky = GetSkySHDiffuse(shaderAttributes.N) * View.SkyLightColor.rgb;
-
-	// Specular
-	float specular = GFSDK_Hair_ComputeHairSpecularShading(
-		LightDir,
-		shaderAttributes,
-		HairConstantBuffer.defaultMaterial
-		);
-
-	// Glint
-	float glint = GFSDK_Hair_ComputeHairGlint(
-		HairConstantBuffer,
-		HairConstantBuffer.defaultMaterial,
-		shaderAttributes
-		);
-
-	specular *= lerp(1.0, glint, HairConstantBuffer.defaultMaterial.glintStrength);
-
-	float4 lightAttenuation = Square(LightAttenuationTexture.Sample(TextureSampler, (input.position.xy + View.ViewRectMin.xy) * View.ViewSizeAndInvSize.zw));
-	const float3 lightColor = LightColor * min(lightAttenuation.x, lightAttenuation.z);
-	float luminance = dot(lightColor, float3(0.3, 0.5, 0.2));
-	sky += HairConstantBuffer.defaultMaterial.glintStrength * glint * float3(luminance, luminance, luminance);
 
 	// Sum
 	float3 hairColor = GFSDK_Hair_SampleHairColorTex(
@@ -102,40 +67,65 @@ MainOut Main(GFSDK_Hair_PixelShaderInput input)
 	float3 diffuseColor = Diffuse_Lambert(hairColor);
 	float3 specularColor = Diffuse_Lambert(HairConstantBuffer.defaultMaterial.specularColor);
 
-	MainOut outPut = (MainOut)0;
 
-	outPut.Color.rgb += (sky + IndirectLight) * diffuseColor + (diffuse * diffuseColor + specular * specularColor) * lightColor;
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED) && !NO_GBUFFER
 
-	outPut.Color.a = GFSDK_Hair_ComputeAlpha(
-		HairConstantBuffer,
-		HairConstantBuffer.defaultMaterial,
-		shaderAttributes);
+		FGBufferData GBuffer = (FGBufferData)0;
 
-	return outPut;
-}
+		// Where do we get this from? shaderAttributes.N is not correct!
+		GBuffer.WorldNormal = shaderAttributes.N;
 
-float4 SimpleMain() : SV_Target0
-{
-	return 1;
-}
 
-float4 VelocityMain(GFSDK_Hair_PixelShaderInput input) : SV_Target0
-{
-	// Shader attributes
-	GFSDK_Hair_ShaderAttributes shaderAttributes = GFSDK_Hair_GetShaderAttributes(input, HairConstantBuffer);
+		// Use hairColor for now - the other ones above are monkeyed with
+		GBuffer.BaseColor = 1; //hairColor;
 
-	float4 outColor;
+		// No idea what we should put here
+		GBuffer.Metallic = 0;
+		GBuffer.Specular = 0.5;
+		GBuffer.Roughness = 0.5;
 
-	float2 vel = shaderAttributes.wVel.xy;
-	vel.y = -vel.y;
-	vel = vel / (View.ViewSizeAndInvSize.xy / 2.0) - (View.ViewToClip[2].xy - View.PrevProjection[2].xy);
+		// NO IDEA
+		GBuffer.IndirectIrradiance = 1;
+		
+		// Static lighting, don't care.
+		//GBuffer.PrecomputedShadowFactors = PrecomputedShadowFactors;
 
-	outColor.xy = EncodeVelocityToTexture(vel);
-	outColor.zw = float2(0, 0);
-	return outColor;
-}
+		// No idea
+		GBuffer.GBufferAO = 1;
 
-float ShadowDepthMain(in float4 Position : SV_Position) : SV_Depth
-{
-	return Position.z * Position.w * ShadowParams.y + ShadowParams.x;
+		GBuffer.Opacity = 1;
+		
+		GBuffer.DecalMask = 0;
+		GBuffer.HasDistanceFieldRepresentation = 0; //Primitive.HasDistanceFieldRepresentation;
+		GBuffer.HasHeightfieldRepresentation = 0; //Primitive.HasHeightfieldRepresentation;
+
+		GBuffer.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
+
+
+		#if !ALLOW_STATIC_LIGHTING
+			float4 OutGBufferE = 0;
+		#endif
+
+		#if 0 //WRITES_VELOCITY_TO_GBUFFER
+			{
+				// 2d velocity, includes camera an object motion
+			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
+				float2 Velocity = Calculate2DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
+			#else
+				float2 Velocity = Calculate2DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
+			#endif
+
+				// Make sure not to touch 0,0 which is clear color
+				GBuffer.Velocity = float4(EncodeVelocityToTexture(Velocity), 0, 0) * BasePassInterpolants.VelocityPrevScreenPosition.z;
+			}
+		#else
+			GBuffer.Velocity = 0;
+			float4 OutGBufferVelocity = 0;
+		#endif
+
+		float QuantizationBias = 1.0; //PseudoRandom( MaterialParameters.SVPosition.xy ) * 0.5 - 0.5;
+		EncodeGBuffer(GBuffer, OutGBufferA, OutGBufferB, OutGBufferC, OutGBufferD, OutGBufferE, OutGBufferVelocity, QuantizationBias);
+	#endif 
+
+	// Not return, all output params
 }

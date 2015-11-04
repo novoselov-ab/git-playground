@@ -191,6 +191,7 @@ struct GFSDK_Hair_ConstantBuffer
 #define	NOINTERPOLATION					nointerpolation
 #endif
 
+
 //////////////////////////////////////////////////////////////////////////////
 // return normalized noise (0..1) from a unique hash id
 float GFSDK_Hair_GetNormalizedNoise(unsigned int hash, GFSDK_Hair_ConstantBuffer hairConstantBuffer)
@@ -302,6 +303,7 @@ float GFSDK_Hair_SampleBilinear(
 	float val = lerp(val0, val1, v);
 	return val;
 }
+
 
 //////////////////////////////////////////////////////////////////////////////
 // Compute structured noise in 1D

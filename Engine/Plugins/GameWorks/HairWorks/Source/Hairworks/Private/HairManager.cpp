@@ -13,7 +13,7 @@ using namespace std::placeholders;
 FHairManager::FHairManager():
 	CVarHairMsaaLevel(TEXT("r.Hair.MsaaLevel"), 4, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairTemporalAa(TEXT("r.Hair.TemporalAa"), 1, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairMsaa(TEXT("r.Hair.Msaa"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairMsaa(TEXT("r.Hair.Msaa"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadows(TEXT("r.Hair.Shadows"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairOutputVelocity(TEXT("r.Hair.OutputVelocity"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadowBiasScale(TEXT("r.Hair.Shadow.BiasScale"), 0.1, TEXT(""), ECVF_RenderThreadSafe),
@@ -42,22 +42,22 @@ FHairManager::FHairManager():
 	FRendererHooks::get().RenderMidPointCallbacks.Add(std::bind(&FHairManager::UpdateHairFlagsAndClearRenderTargets, this, _1, _2), 0);
 
 //	FRendererHooks::get().RenderBasePassViewCallbacks.Add(std::bind(&FHairManager::RenderBaseView, this, _1), 0);
-	FRendererHooks::get().RenderBasePassDynamicCallbacks.Add(std::bind(&FHairManager::RenderBasePassDynamic, this, _1, _2), 0);
+	FRendererHooks::get().RenderBasePassDynamicCallbacks.Add(std::bind(&FHairManager::RenderToGBuffers, this, _1, _2), 0);
 	FRendererHooks::get().RenderProjectedShadowDepthDynamicCallbacks.Add(std::bind(&FHairManager::RenderDepthDynamic, this, _1, _2, _3, _4, _5), 0);
 
 	FRendererHooks::get().SetHairLightCallbacks.Add(std::bind(&FHairManager::SetHairLightSettings, this, _1, _2, _3), 0);
 	FRendererHooks::get().PostVisibilityFrameSetupCallbacks.Add(std::bind(&FHairManager::SortVisibleDynamicPrimitives, this, _1), 0);
 
 	// These are all for shadows, and don't seem to be required!
-	FRendererHooks::get().FirstShadowRenderCallbacks.Add(std::bind(&FHairManager::ClearHairLightAttenuation, this, _1), 0);
-	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
-	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
-	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
-	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
-	FRendererHooks::get().AllocCommonDepthTargetsCallbacks.Add(std::bind(&FHairManager::AllocHairDepthZ, this, _1), 0);
-	FRendererHooks::get().AllocLightAttenuationCallbacks.Add(std::bind(&FHairManager::AllocHairLightAttenuation, this, _1), 0);
-	FRendererHooks::get().AllocSceneColorCallbacks.Add(std::bind(&FHairManager::AllocHairMask, this, _1), 0);
-	FRendererHooks::get().DeallocRenderTargetsCallbacks.Add(std::bind(&FHairManager::DeallocRenderTargets, this), 0);
+// 	FRendererHooks::get().FirstShadowRenderCallbacks.Add(std::bind(&FHairManager::ClearHairLightAttenuation, this, _1), 0);
+// 	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
+// 	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
+// 	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
+// 	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
+// 	FRendererHooks::get().AllocCommonDepthTargetsCallbacks.Add(std::bind(&FHairManager::AllocHairDepthZ, this, _1), 0);
+// 	FRendererHooks::get().AllocLightAttenuationCallbacks.Add(std::bind(&FHairManager::AllocHairLightAttenuation, this, _1), 0);
+// 	FRendererHooks::get().AllocSceneColorCallbacks.Add(std::bind(&FHairManager::AllocHairMask, this, _1), 0);
+// 	FRendererHooks::get().DeallocRenderTargetsCallbacks.Add(std::bind(&FHairManager::DeallocRenderTargets, this), 0);
 
 	RHIInitHandle = FCoreDelegates::OnRHIInit.AddRaw(this, &FHairManager::PostRHIInitLoad);
 	OnExitHandle = FCoreDelegates::OnExit.AddRaw(this, &FHairManager::FreeResources);
@@ -356,6 +356,7 @@ void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RH
 
 		for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
 		{
+			//TODO: Fix these stupid autos
 			auto& PrimitiveInfo = *View.VisibleDynamicPrimitives[MeshIdx];
 			auto& ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo.GetIndex()];
 			if (!ViewRelevance.GWData.bHair)
@@ -377,6 +378,7 @@ void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RH
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 			auto LightAttenuationTexture = HairLightAttenuation && bLightShadowed ? HairLightAttenuation->GetRenderTargetItem().ShaderResourceTexture : nullptr;
+//			auto LightAttenuationTexture = HairLightAttenuation && bLightShadowed ? HairLightAttenuation->GetRenderTargetItem().ShaderResourceTexture : nullptr;
 
 			HairSceneProxy.DrawTranslucency(
 				View,
@@ -396,6 +398,29 @@ void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RH
 #endif
 	}
 
+}
+
+void FHairManager::RenderToGBuffers(const FViewInfo& View, FRHICommandList& RHICmdList)
+{
+	if (View.GWData.bHasHair)
+	{
+		StepSimulation();
+
+		// NOTE: No messing with RTs! We're rendering to UE4s GBuffers!
+
+		for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
+		{
+			auto PrimitiveInfo = View.VisibleDynamicPrimitives[MeshIdx];
+			auto ViewRelevance = View.PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
+			if (!ViewRelevance.GWData.bHair)
+				continue;
+
+			FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+
+			HairProxy->DrawToGBuffers(View);
+		}
+
+	}
 }
 
 void FHairManager::RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList)
@@ -437,6 +462,7 @@ void FHairManager::RenderBasePassDynamic(const FViewInfo& View, FRHICommandList&
 			DrawPostDepth();
 			DrawPostColor();
 
+			//JDM: What does this call actually do?
 			SceneContext.BeginRenderingGBuffer(RHICmdList, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ENoAction);
 		}
 #endif
@@ -478,6 +504,8 @@ void FHairManager::ClearHairLightAttenuation(FRHICommandList &RHICmdList)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+	check(SceneContext.LightAttenuation.IsValid());
+
 	// Swap in HairLightAttenuation
 	SceneContext.LightAttenuation.Swap(HairLightAttenuation);
 
@@ -516,6 +544,8 @@ void FHairManager::RenderShadowProjection(const FProjectedShadowInfo& shadowInfo
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+		check(SceneContext.LightAttenuation.IsValid());
+
 		// Swap to replace render targets as well as shader resources.
 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
@@ -534,6 +564,8 @@ void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, cons
 
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+		check(SceneContext.LightAttenuation.IsValid());
+
 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
 		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
@@ -550,6 +582,8 @@ void FHairManager::AfterRenderProjection(const FProjectedShadowInfo& shadowInfo,
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
+		check(SceneContext.LightAttenuation.IsValid());
+
 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
 		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
@@ -562,6 +596,8 @@ void FHairManager::AfterRenderProjection(const FProjectedShadowInfo& shadowInfo,
 		//RenderProjection(FRHICommandListImmediate& RHICmdList, int32 ViewIndex, const class FViewInfo* View, bool bForwardShading) const;
 		shadowInfo.RenderProjection(RHICmdList, ViewIndex, &View, false);
 		shadowInfo.GWData.bHairRenderProjection = false;
+
+		check(SceneContext.LightAttenuation.IsValid());
 
 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);

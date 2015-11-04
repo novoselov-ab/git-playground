@@ -420,6 +420,11 @@ struct FShaderCompilerInput
 	FString EntryPointName;
 	FString DumpDebugInfoRootPath;	// Dump debug path (up to platform)
 	FString DumpDebugInfoPath;		// Dump debug path (platform/groupname)
+
+//START:GWGLUE
+	TArray<FString> AlternateShaderPaths;				// Other shader directories to look in.
+//END:GWGLUE
+
 	FShaderCompilerEnvironment Environment;
 	TRefCountPtr<FShaderCompilerEnvironment> SharedEnvironment;
 
@@ -442,6 +447,10 @@ struct FShaderCompilerInput
 
 		bool bHasSharedEnvironment = IsValidRef(Input.SharedEnvironment);
 		Ar << bHasSharedEnvironment;
+
+//START:GWGLUE
+		Ar << Input.AlternateShaderPaths;
+//END:GWGLUE
 
 		if (bHasSharedEnvironment)
 		{
@@ -532,6 +541,11 @@ extern SHADERCORE_API FString GetRelativeShaderFilename(const FString& InFilenam
  This should be called by plugins that want to point to their own contained shaders.
 */
 extern SHADERCORE_API void AddAlternateShaderPath(const TCHAR* Path);
+
+extern SHADERCORE_API TArray<FString> GetAlternateShaderPaths();
+
+extern SHADERCORE_API void SetAlternateShaderPaths(TArray<FString> newPaths);
+
 //END:GWGLUE
 
 /**

@@ -315,6 +315,16 @@ void AddAlternateShaderPath(const TCHAR* Path)
 	AlternateShaderPaths.Add(FString(Path));
 }
 
+TArray<FString> GetAlternateShaderPaths()
+{
+	return AlternateShaderPaths;
+}
+
+void SetAlternateShaderPaths(TArray<FString> newPaths)
+{
+	AlternateShaderPaths = newPaths;
+}
+
 bool LoadShaderSourceFile(const TCHAR* Filename, FString& OutFileContents)
 {
 	// it's not expected that cooked platforms get here, but if they do, this is the final out

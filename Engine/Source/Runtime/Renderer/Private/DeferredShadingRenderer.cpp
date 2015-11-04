@@ -595,7 +595,7 @@ bool FDeferredShadingSceneRenderer::RenderBasePassView(FRHICommandListImmediate&
 	bDirty |= RenderBasePassStaticData(RHICmdList, View);
 	
 //#ifdef GWGLUE
-//	FRendererHooks::get().OnRenderBasePassView(View);
+	//FRendererHooks::get().OnRe
 //#endif
 
 	RenderBasePassDynamicData(RHICmdList, View, bDirty);

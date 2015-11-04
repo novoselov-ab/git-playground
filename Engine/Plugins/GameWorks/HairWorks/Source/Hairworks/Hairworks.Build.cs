@@ -57,7 +57,7 @@ namespace UnrealBuildTool.Rules
 // 			    });
 
             Definitions.Add("GW_HAIRWORKS=1");
-            Definitions.Add("HW_MSAA=1");
+//            Definitions.Add("HW_MSAA=1");
 
             if (Target.Platform == UnrealTargetPlatform.Win32)
             {
