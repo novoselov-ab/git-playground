@@ -67,22 +67,22 @@ protected:
 // };
 // 
 // 
-// class FHairWorksShadowDepthPs : public FGlobalShader
-// {
-// 	DECLARE_SHADER_TYPE(FHairWorksShadowDepthPs, Global);
-// 
-// 	FHairWorksShadowDepthPs();
-// 
-// 	FHairWorksShadowDepthPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
-// 
-// 	bool Serialize(FArchive& Ar) override;
-// 
-// 	static bool ShouldCache(EShaderPlatform Platform);
-// 
-// 	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment);
-// 
-// 	FShaderParameter ShadowParams;
-// };
+class FHairWorksShadowDepthPs : public FGlobalShader
+{
+	DECLARE_SHADER_TYPE(FHairWorksShadowDepthPs, Global);
+
+	FHairWorksShadowDepthPs();
+
+	FHairWorksShadowDepthPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer);
+
+	bool Serialize(FArchive& Ar) override;
+
+	static bool ShouldCache(EShaderPlatform Platform);
+
+	static void ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment);
+
+	FShaderParameter ShadowParams;
+};
 // 
 // 
 // class FHairWorksVelocityPs : public FGlobalShader

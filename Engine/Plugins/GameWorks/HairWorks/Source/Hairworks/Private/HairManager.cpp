@@ -36,7 +36,7 @@ FHairManager::FHairManager():
 	HairWorksSdk(nullptr),
 	HWLogger(MakeUnique<FHairWorksLogger>())
 {
-	FRendererHooks::get().TranslucentViewRenderCallbacks.Add(std::bind(&FHairManager::RenderTranslucency, this, _1, _2), 0);
+//	FRendererHooks::get().TranslucentViewRenderCallbacks.Add(std::bind(&FHairManager::RenderTranslucency, this, _1, _2), 0);
 	FRendererHooks::get().RenderVelocitiesInnerCallbacks.Add(std::bind(&FHairManager::RenderVelocitiesInner, this, _1), 0);
 
 	FRendererHooks::get().RenderMidPointCallbacks.Add(std::bind(&FHairManager::UpdateHairFlagsAndClearRenderTargets, this, _1, _2), 0);
@@ -50,7 +50,7 @@ FHairManager::FHairManager():
 
 	// These are all for shadows, and don't seem to be required!
 // 	FRendererHooks::get().FirstShadowRenderCallbacks.Add(std::bind(&FHairManager::ClearHairLightAttenuation, this, _1), 0);
-// 	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
+ 	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
 // 	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
 // 	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
 // 	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
@@ -572,8 +572,6 @@ void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, cons
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
-
-
 }
 
 void FHairManager::AfterRenderProjection(const FProjectedShadowInfo& shadowInfo, const FViewInfo& View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList)

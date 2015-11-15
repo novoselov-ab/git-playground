@@ -9,7 +9,7 @@
 IMPLEMENT_SHADER_TYPE(, FHairWorksPs, TEXT("HairWorks"), TEXT("Main"), SF_Pixel);
 // IMPLEMENT_SHADER_TYPE(, FHairWorksVelocityPs, TEXT("HairWorks"), TEXT("VelocityMain"), SF_Pixel);
 // IMPLEMENT_SHADER_TYPE(, FHairWorksSimplePs, TEXT("HairWorks"), TEXT("SimpleMain"), SF_Pixel);
-// IMPLEMENT_SHADER_TYPE(, FHairWorksShadowDepthPs, TEXT("HairWorks"), TEXT("ShadowDepthMain"), SF_Pixel);
+IMPLEMENT_SHADER_TYPE(, FHairWorksShadowDepthPs, TEXT("HairWorks"), TEXT("ShadowDepthMain"), SF_Pixel);
 
 FHairWorksPs::FHairWorksPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer)
 {
@@ -92,32 +92,32 @@ void FHairWorksPs::ModifyCompilationEnvironment(EShaderPlatform Platform, FShade
 // 	FGlobalShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
 // }
 // 
-// FHairWorksShadowDepthPs::FHairWorksShadowDepthPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer)
-// {
-// 	ShadowParams.Bind(Initializer.ParameterMap, TEXT("ShadowParams"));
-// }
-// 
-// FHairWorksShadowDepthPs::FHairWorksShadowDepthPs()
-// {
-// 
-// }
-// 
-// bool FHairWorksShadowDepthPs::Serialize(FArchive& Ar)
-// {
-// 	bool bSerialized = FGlobalShader::Serialize(Ar);
-// 	Ar << ShadowParams;
-// 	return bSerialized;
-// }
-// 
-// bool FHairWorksShadowDepthPs::ShouldCache(EShaderPlatform Platform)
-// {
-// 	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
-// }
-// 
-// void FHairWorksShadowDepthPs::ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
-// {
-// 	FGlobalShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
-// }
+FHairWorksShadowDepthPs::FHairWorksShadowDepthPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer)
+{
+	ShadowParams.Bind(Initializer.ParameterMap, TEXT("ShadowParams"));
+}
+
+FHairWorksShadowDepthPs::FHairWorksShadowDepthPs()
+{
+
+}
+
+bool FHairWorksShadowDepthPs::Serialize(FArchive& Ar)
+{
+	bool bSerialized = FGlobalShader::Serialize(Ar);
+	Ar << ShadowParams;
+	return bSerialized;
+}
+
+bool FHairWorksShadowDepthPs::ShouldCache(EShaderPlatform Platform)
+{
+	return IsFeatureLevelSupported(Platform, ERHIFeatureLevel::SM5);
+}
+
+void FHairWorksShadowDepthPs::ModifyCompilationEnvironment(EShaderPlatform Platform, FShaderCompilerEnvironment& OutEnvironment)
+{
+	FGlobalShader::ModifyCompilationEnvironment(Platform, OutEnvironment);
+}
 // 
 // FHairWorksVelocityPs::FHairWorksVelocityPs(const ShaderMetaType::CompiledShaderInitializerType& Initializer) : FGlobalShader(Initializer)
 // {

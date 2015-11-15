@@ -77,7 +77,7 @@ void Main(
 
 
 		// Use hairColor for now - the other ones above are monkeyed with
-		GBuffer.BaseColor = 1; //hairColor;
+		GBuffer.BaseColor = hairColor;
 
 		// No idea what we should put here
 		GBuffer.Metallic = 0;
@@ -92,7 +92,6 @@ void Main(
 
 		// No idea
 		GBuffer.GBufferAO = 1;
-
 		GBuffer.Opacity = 1;
 		
 		GBuffer.DecalMask = 0;
@@ -128,4 +127,10 @@ void Main(
 	#endif 
 
 	// Not return, all output params
+}
+
+float ShadowDepthMain(in float4 Position : SV_Position) : SV_Depth
+{
+	return 1;
+	//return Position.z * Position.w * ShadowParams.y + ShadowParams.x;
 }

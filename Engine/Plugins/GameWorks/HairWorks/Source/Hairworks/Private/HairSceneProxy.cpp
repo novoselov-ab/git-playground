@@ -197,54 +197,52 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 
 void FHairSceneProxy::DrawShadow(const FViewMatrices& ViewMatrices, float DepthBias, float DepthScale)
 {
-	return;
+	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
+		return;
 
-// 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
-// 		return;
-// 
-// 	auto HairWorksSdk = GHairManager->GetHairworksSdk();
-// 
-// 	// JDM: GROSS! - GET RID OF THIS. Need another member in the config that encapsulates this, since the shader already knows it's a shadow render.
-// 	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
-// 
-// 	HairDesc.m_width *= GHairManager->CVarHairShadowWidthScale.GetValueOnRenderThread();
-// 	HairDesc.m_useBackfaceCulling = false;
-// 
-// 	// Update parameters
-// 	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
-// 	HairDesc.m_useViewfrustrumCulling = false;
-// 
-// 	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
-// 
-// 
-// 	
-// 	// Pass camera inforamtin
-// 	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
-// 
-// 	// Set shaders.
-// 	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-// 
-// 	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-// 	TShaderMapRef<FHairWorksShadowDepthPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
-// 
-// 	static FGlobalBoundShaderState BoundShaderState;
-// 	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
-// 		*VertexShader, *PixelShader);
-// 
-// 	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->ShadowParams, FVector2D(DepthBias * GHairManager->CVarHairShadowBiasScale.GetValueOnRenderThread(), DepthScale));
-// 
-// 	// To update shader states
-// 	RHICmdList.DrawPrimitive(0, 0, 0, 0);
-// 
-// // 	// Handle shader cache
-// // 	UpdateShaderCache();
-// 
-// 	// Draw
-// 	GFSDK_HairShaderSettings HairShaderSettings;
-// 	HairShaderSettings.m_useCustomConstantBuffer = true;
-// 	HairShaderSettings.m_shadowPass = true;
-// 
-// 	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+
+	// JDM: GROSS! - GET RID OF THIS. Need another member in the config that encapsulates this, since the shader already knows it's a shadow render.
+	GFSDK_HairInstanceDescriptor HairDesc = CachedHairDescriptor;
+
+	HairDesc.m_width *= GHairManager->CVarHairShadowWidthScale.GetValueOnRenderThread();
+	HairDesc.m_useBackfaceCulling = false;
+
+	// Update parameters
+	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	HairDesc.m_useViewfrustrumCulling = false;
+
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);	// Mainly for simulation.
+
+
+	
+	// Pass camera inforamtin
+	HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+
+	// Set shaders.
+	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	TShaderMapRef<FSimpleElementVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+	TShaderMapRef<FHairWorksShadowDepthPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+
+	static FGlobalBoundShaderState BoundShaderState;
+	SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+		*VertexShader, *PixelShader);
+
+	SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->ShadowParams, FVector2D(DepthBias * GHairManager->CVarHairShadowBiasScale.GetValueOnRenderThread(), DepthScale));
+
+	// To update shader states
+	RHICmdList.DrawPrimitive(0, 0, 0, 0);
+
+// 	// Handle shader cache
+ 	UpdateShaderCache();
+
+	// Draw
+	GFSDK_HairShaderSettings HairShaderSettings;
+	HairShaderSettings.m_useCustomConstantBuffer = true;
+	HairShaderSettings.m_shadowPass = true;
+
+	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
 }
 
 void FHairSceneProxy::DrawBasePass(const FSceneView& View)
