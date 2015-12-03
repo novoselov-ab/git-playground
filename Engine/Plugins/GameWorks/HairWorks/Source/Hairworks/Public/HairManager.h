@@ -25,6 +25,8 @@ public:
 	void RenderBasePassDynamic(const FViewInfo& View, FRHICommandList& RHICmdList);
 
 	void SetHairLightSettings(FVector InDirection, FLinearColor InColor, bool InShadow);
+
+	void RenderProjectedShadows(FRHICommandList& RHICmdList, const FProjectedShadowInfo& ShadowInfo, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, const FViewInfo *View);
 	void RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
 	void ClearHairLightAttenuation(FRHICommandList &RHICmdList);

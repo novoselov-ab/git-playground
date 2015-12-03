@@ -23,6 +23,9 @@ public:
 	void DrawBasePass(const FSceneView& View);
 	void DrawShadow(const FViewMatrices& ViewMatrices, float DepthBias, float Scale);
 	void DrawTranslucency(const FSceneView& View, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3]);
+
+	// Draw shadows with matrices being set beforehand
+	void DrawShadows();
 	void DrawVelocity(const FSceneView& View, const FViewMatrices& PrevViewMatrices);
 
 
@@ -34,6 +37,8 @@ public:
 	// Control textures
 	TArray<FTexture2DRHIRef> HairTextures;
 	void UpdateHairParams_GameThread(const GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& HairTextures);
+
+	bool isHairInstanceNull() { return HairInstanceId == GFSDK_HairInstanceID_NULL; }
 protected:
 	// This is called from UHairComponent when something changes in the config, to update the cached copies the proxy has.
 	void UpdateHairParams(GFSDK_HairInstanceDescriptor& HairDesc, const TArray<FTexture2DRHIRef>& InHairTextures);

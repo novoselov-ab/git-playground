@@ -7,6 +7,8 @@
 #include "PostProcess/SceneRenderTargets.h"
 #include "EngineModule.h"
 #include "RendererHooks.h"
+#include "ScreenRendering.h"
+#include "SceneUtils.h"
 
 using namespace std::placeholders;
 
@@ -53,7 +55,9 @@ FHairManager::FHairManager():
  	FRendererHooks::get().RenderProjectedShadowPreShadowCallbacks.Add(std::bind(&FHairManager::UpdateViewPreShadow, this, _1, _2, _3), 0);
 // 	FRendererHooks::get().RenderProjectedShadowRenderProjectionCallbacks.Add(std::bind(&FHairManager::RenderShadowProjection, this, _1, _2, _3), 0);
 // 	FRendererHooks::get().RenderProjectedShadowRenderProjectionEndCallbacks.Add(std::bind(&FHairManager::PostShadowRender, this, _1, _2, _3, _4), 0);
-// 	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
+
+	FRendererHooks::get().RenderProjectedShadowCallbacks.Add(std::bind(&FHairManager::RenderProjectedShadows, this, _1, _2, _3, _4), 0);
+ 	FRendererHooks::get().AfterRenderProjectionCallbacks.Add(std::bind(&FHairManager::AfterRenderProjection, this, _1, _2, _3, _4), 0);
 // 	FRendererHooks::get().AllocCommonDepthTargetsCallbacks.Add(std::bind(&FHairManager::AllocHairDepthZ, this, _1), 0);
 // 	FRendererHooks::get().AllocLightAttenuationCallbacks.Add(std::bind(&FHairManager::AllocHairLightAttenuation, this, _1), 0);
 // 	FRendererHooks::get().AllocSceneColorCallbacks.Add(std::bind(&FHairManager::AllocHairMask, this, _1), 0);
@@ -141,7 +145,7 @@ void FHairManager::DrawPostColor(bool bVelocity)
 	if(!HairWorksSdk)
 		return;
 
-	HairWorksSdk->DrawMSAAColor(bVelocity);
+	HairWorksSdk->DrawMSAAColor();
 }
 
 void FHairManager::DrawPostDepth()
@@ -477,6 +481,81 @@ void FHairManager::SetHairLightSettings(FVector InDirection, FLinearColor InColo
 	bLightShadowed = InShadow;
 }
 
+void FHairManager::RenderProjectedShadows(FRHICommandList& RHICmdList, const FProjectedShadowInfo& ShadowInfo, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, const FViewInfo *View)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, RenderHairShadows);
+
+	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+
+	for (auto PrimitiveIdx = 0; PrimitiveIdx < SubjectPrimitives.Num(); ++PrimitiveIdx)
+	{
+		auto PrimitiveInfo = SubjectPrimitives[PrimitiveIdx];
+		auto ViewRelevance = View->PrimitiveViewRelevanceMap[PrimitiveInfo->GetIndex()];
+		if (!ViewRelevance.GWData.bHair)
+			continue;
+
+		FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+		if (HairProxy->isHairInstanceNull())
+			continue;
+
+		// TODO: Is the hair casting shadows?
+
+		// Setup render states and shaders
+		TShaderMapRef<FScreenVS> VertexShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+
+		if (ShadowInfo.CascadeSettings.bOnePassPointLightShadow)
+		{
+			// Setup camera
+			const FBoxSphereBounds& PrimitiveBounds = HairProxy->GetBounds();
+
+			FViewMatrices ViewMatrices[6];
+			bool Visible[6];
+			for (int32 FaceIndex = 0; FaceIndex < 6; FaceIndex++)
+			{
+				ViewMatrices[FaceIndex].ViewMatrix = ShadowInfo.OnePassShadowViewProjectionMatrices[FaceIndex];
+				Visible[FaceIndex] = ShadowInfo.OnePassShadowFrustums[FaceIndex].IntersectBox(PrimitiveBounds.Origin, PrimitiveBounds.BoxExtent);
+			}
+
+			gfsdk_float4x4 HairViewMatrices[6];
+			gfsdk_float4x4 HairProjMatrices[6];
+			for (int FaceIdx = 0; FaceIdx < 6; ++FaceIdx)
+			{
+				HairViewMatrices[FaceIdx] = *(gfsdk_float4x4*)ViewMatrices[FaceIdx].ViewMatrix.M;
+				HairProjMatrices[FaceIdx] = *(gfsdk_float4x4*)ViewMatrices[FaceIdx].ProjMatrix.M;
+			}
+
+			HairWorksSdk->SetViewProjectionForCubeMap(HairViewMatrices, HairProjMatrices, Visible, GFSDK_HAIR_LEFT_HANDED);
+
+			// Setup shader
+			static FGlobalBoundShaderState BoundShaderState;
+			SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+				*VertexShader, nullptr);
+		}
+		else
+		{
+			// Setup camera
+			FViewMatrices ViewMatrices;
+			ViewMatrices.ViewMatrix = FTranslationMatrix(ShadowInfo.PreShadowTranslation) * ShadowInfo.SubjectAndReceiverMatrix;
+			HairWorksSdk->SetViewProjection((gfsdk_float4x4*)ViewMatrices.ViewMatrix.M, (gfsdk_float4x4*)ViewMatrices.ProjMatrix.M, GFSDK_HAIR_LEFT_HANDED);
+
+			// Setup shader
+			TShaderMapRef<FHairWorksShadowDepthPs> PixelShader(GetGlobalShaderMap(ERHIFeatureLevel::SM5));
+
+			static FGlobalBoundShaderState BoundShaderState;
+			SetGlobalBoundShaderState(RHICmdList, ERHIFeatureLevel::SM5, BoundShaderState, GSimpleElementVertexDeclaration.VertexDeclarationRHI,
+				*VertexShader, *PixelShader);
+
+ 			SetShaderValue(RHICmdList, PixelShader->GetPixelShader(), PixelShader->ShadowParams, FVector2D(ShadowInfo.GetShaderDepthBias() * GHairManager->CVarHairShadowBiasScale.GetValueOnRenderThread(), ShadowInfo.InvMaxSubjectDepth));
+		}
+
+		// Flush render states
+		RHICmdList.DrawPrimitive(0, 0, 0, 0);
+
+		// Draw hair shadows
+		HairProxy->DrawShadows();
+	}
+}
+
 void FHairManager::RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
 {
 //	UE_LOG(LogHairWorks, Log, TEXT("HM:RenderDepthDynamic"));
@@ -546,10 +625,10 @@ void FHairManager::RenderShadowProjection(const FProjectedShadowInfo& shadowInfo
 
 		check(SceneContext.LightAttenuation.IsValid());
 
-		// Swap to replace render targets as well as shader resources.
-		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
-		SceneContext.SceneDepthZ.Swap(HairDepthZ);
-		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
+// 		// Swap to replace render targets as well as shader resources.
+// 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
+// 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
+// 		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
@@ -566,9 +645,9 @@ void FHairManager::PostShadowRender(const FProjectedShadowInfo& shadowInfo, cons
 
 		check(SceneContext.LightAttenuation.IsValid());
 
-		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
-		SceneContext.SceneDepthZ.Swap(HairDepthZ);
-		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
+// 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
+// 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
+// 		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
 
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
@@ -580,12 +659,12 @@ void FHairManager::AfterRenderProjection(const FProjectedShadowInfo& shadowInfo,
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
-		check(SceneContext.LightAttenuation.IsValid());
-
-		SceneContext.SceneDepthZ.Swap(HairDepthZ);
-		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
-		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+// 		check(SceneContext.LightAttenuation.IsValid());
+// 
+// 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
+// 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
+//  		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
+//  		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 
 		checkSlow(!shadowInfo.GWData.bHairRenderProjection);
 		shadowInfo.GWData.bHairRenderProjection = true;
@@ -595,12 +674,12 @@ void FHairManager::AfterRenderProjection(const FProjectedShadowInfo& shadowInfo,
 		shadowInfo.RenderProjection(RHICmdList, ViewIndex, &View, false);
 		shadowInfo.GWData.bHairRenderProjection = false;
 
-		check(SceneContext.LightAttenuation.IsValid());
-
-		SceneContext.SceneDepthZ.Swap(HairDepthZ);
-		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
-		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+// 		check(SceneContext.LightAttenuation.IsValid());
+// 
+// 		SceneContext.SceneDepthZ.Swap(HairDepthZ);
+// 		SceneContext.LightAttenuation.Swap(HairLightAttenuation);
+// 		SceneContext.BeginRenderingLightAttenuation(RHICmdList);
+// 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 	}
 }
 

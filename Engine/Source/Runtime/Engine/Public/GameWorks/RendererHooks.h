@@ -39,6 +39,8 @@ public:
 	// TODO: Make this interface more consistent.
 	void OnFirstShadowRender(FRHICommandList &RHICmdList);
 
+	void OnRenderProjectedShadow(FRHICommandList& RHICmdList, const FProjectedShadowInfo& ShadowInfo, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, const FViewInfo *View);
+
 	void OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth);
 
 	void OnProjectedShadowPreShadow(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> &ReceiverPrimitives);
@@ -72,6 +74,8 @@ public:
 	FSortedCallbackList<std::function<void(const FViewInfo&, FRHICommandList&)>> RenderBasePassDynamicCallbacks;
 
 	FSortedCallbackList<std::function<void(FRHICommandList&)>> FirstShadowRenderCallbacks;
+
+	FSortedCallbackList<std::function<void(FRHICommandList&, const FProjectedShadowInfo&, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator>, const FViewInfo*)>> RenderProjectedShadowCallbacks;
 
 	FSortedCallbackList<std::function<void(const FViewInfo*, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator>, FViewMatrices, float, float)>> RenderProjectedShadowDepthDynamicCallbacks;
 

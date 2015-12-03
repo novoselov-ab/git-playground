@@ -1376,11 +1376,16 @@ void FProjectedShadowInfo::RenderDepthDynamic(FRHICommandList& RHICmdList, FScen
 	}
 
 //#ifdef GWGLUE
-	FViewMatrices ViewMatrices;
-	ViewMatrices.ViewMatrix = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
-
-	FRendererHooks::get().OnProjectedShadowRenderDepthDynamic(FoundView, SubjectPrimitives, ViewMatrices, GetShaderDepthBias(), InvMaxSubjectDepth);
+// 	FViewMatrices ViewMatrices;
+// 	ViewMatrices.ViewMatrix = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
+// 
+// 	FRendererHooks::get().OnProjectedShadowRenderDepthDynamic(FoundView, SubjectPrimitives, ViewMatrices, GetShaderDepthBias(), InvMaxSubjectDepth);
 //#endif
+//START: GWGLUE
+	// Only execute our render if this is the immediate command list, as we can't queue it.
+	if (RHICmdList.IsImmediate())
+		FRendererHooks::get().OnRenderProjectedShadow(RHICmdList, *this, SubjectPrimitives, FoundView);
+//END:GWGLUE
 
 }
 
@@ -2083,6 +2088,7 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		SCOPED_DRAW_EVENTF(RHICmdList, EventMaskSubjects, TEXT("Stencil Mask Subjects"));
 
 // #ifdef GWGLUE
+		//NOTE: HairWorks doesn't want this scope to execute at all if it's being called in a hair pass.
 		FRendererHooks::get().OnProjectedShadowPreShadow(*this, *View, ReceiverPrimitives);
 // #endif
 

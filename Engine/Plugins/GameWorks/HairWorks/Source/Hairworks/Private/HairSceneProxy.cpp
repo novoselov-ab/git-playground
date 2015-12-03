@@ -195,6 +195,43 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 // 	HairWorksSdk->RenderVisualization(HairInstanceId);
 }
 
+void FHairSceneProxy::DrawShadows()
+{
+	SCOPED_DRAW_EVENT(RHICmdList, RenderHairShadow);
+
+	auto HairWorksSdk = GHairManager->GetHairworksSdk();
+
+	// Special for shadow
+	GFSDK_HairInstanceDescriptor HairDesc;
+	HairWorksSdk->CopyCurrentInstanceDescriptor(HairInstanceId, HairDesc);
+
+	HairDesc.m_useBackfaceCulling = false;
+
+	HairDesc.m_modelToWorld = (gfsdk_float4x4&)GetLocalToWorld().M;
+	HairDesc.m_useViewfrustrumCulling = false;
+
+
+	HairWorksSdk->UpdateInstanceDescriptor(HairInstanceId, HairDesc);
+
+	// Handle shader cache.
+	GFSDK_HairShaderCacheSettings ShaderCacheSetting;
+	ShaderCacheSetting.SetFromInstanceDescriptor(HairDesc);
+	check(HairTextures.Num() == GFSDK_HAIR_NUM_TEXTURES);
+	for (int i = 0; i < GFSDK_HAIR_NUM_TEXTURES; i++)
+	{
+		ShaderCacheSetting.isTextureUsed[i] = (HairTextures[i] != nullptr);
+	}
+
+	HairWorksSdk->AddToShaderCache(ShaderCacheSetting);
+
+	// Draw
+	GFSDK_HairShaderSettings HairShaderSettings;
+	HairShaderSettings.m_useCustomConstantBuffer = true;
+	HairShaderSettings.m_shadowPass = true;
+
+	HairWorksSdk->RenderHairs(HairInstanceId, &HairShaderSettings);
+}
+
 void FHairSceneProxy::DrawShadow(const FViewMatrices& ViewMatrices, float DepthBias, float DepthScale)
 {
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)

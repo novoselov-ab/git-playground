@@ -48,6 +48,14 @@ void FRendererHooks::OnFirstShadowRender(FRHICommandList &RHICmdList)
 	}
 }
 
+void FRendererHooks::OnRenderProjectedShadow(FRHICommandList& RHICmdList, const FProjectedShadowInfo& ShadowInfo, const TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, const FViewInfo *View)
+{
+	for (auto callback : RenderProjectedShadowCallbacks.getCallbacks())
+	{
+		callback->getCallback()(RHICmdList, ShadowInfo, SubjectPrimitives, View);
+	}
+}
+
 void FRendererHooks::OnProjectedShadowRenderDepthDynamic(const FViewInfo *View, TArray<const FPrimitiveSceneInfo*, SceneRenderingAllocator> SubjectPrimitives, FViewMatrices ViewMatrices, float ShaderDepthBias, float InvMaxSubjectDepth)
 {
 	for (auto callback : RenderProjectedShadowDepthDynamicCallbacks.getCallbacks())
