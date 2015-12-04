@@ -552,7 +552,7 @@ void FHairManager::RenderProjectedShadows(FRHICommandList& RHICmdList, const FPr
 		RHICmdList.DrawPrimitive(0, 0, 0, 0);
 
 		// Draw hair shadows
-		HairProxy->DrawShadows();
+		HairProxy->DrawShadows(RHICmdList);
 	}
 }
 

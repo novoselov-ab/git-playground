@@ -25,7 +25,7 @@ public:
 	void DrawTranslucency(const FSceneView& View, const FVector& LightDir, const FLinearColor& LightColor, FTextureRHIRef LightAttenuation, const FVector4 IndirectLight[3]);
 
 	// Draw shadows with matrices being set beforehand
-	void DrawShadows();
+	void DrawShadows(FRHICommandList &RHICmdList);
 	void DrawVelocity(const FSceneView& View, const FViewMatrices& PrevViewMatrices);
 
 

@@ -195,7 +195,7 @@ void FHairSceneProxy::DrawTranslucency(const FSceneView& View, const FVector& Li
 // 	HairWorksSdk->RenderVisualization(HairInstanceId);
 }
 
-void FHairSceneProxy::DrawShadows()
+void FHairSceneProxy::DrawShadows(FRHICommandList& RHICmdList)
 {
 	SCOPED_DRAW_EVENT(RHICmdList, RenderHairShadow);
 

@@ -215,7 +215,8 @@
     <File Name="Engine/Binaries/Win64/CrashReportClient.exe" Hash="e1317b4341f5ec4b3b49b47b99cf19ac63df5dbb" />
     <File Name="Engine/Binaries/Win64/MinidumpDiagnostics.exe" Hash="d550b8d654b2d5e0f2bc32a1187012c88d4f9c78" />
     <File Name="Engine/Binaries/Win64/ParallelExecutor.exe" Hash="354e784fdf030935d3f11fc4e7d7ea21fedc82b1" />
-    <File Name="Engine/Binaries/Win64/ShaderCompileWorker.exe" Hash="fa1985437bb2ff0d35cdef015e6bab5d833cea0c" />
+
+<!--     <File Name="Engine/Binaries/Win64/ShaderCompileWorker.exe" Hash="fa1985437bb2ff0d35cdef015e6bab5d833cea0c" />
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-Core.dll" Hash="090a0a2007015710b51094e1ba486553883d18f7" />
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-DesktopPlatform.dll" Hash="ab1e68bb977c884f19ea36d01c040b8e8f2b7fb3" />
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-ImageCore.dll" Hash="7ecabc22e37420108a4bbfb4ea0846760b0a679e" />
@@ -236,6 +237,7 @@
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-TextureFormatASTC.dll" Hash="a1ddaee3959919384ec7d97c3bcbf70cac783c46" />
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-TextureFormatDXT.dll" Hash="ab520f0718879435ccb3cc25a528fb22577f97bc" />
     <File Name="Engine/Binaries/Win64/ShaderCompileWorker-TextureFormatPVR.dll" Hash="ad8e3f9ab46d9eb28072b33d175fb1d3f178c018" />
+ -->
     <File Name="Engine/Binaries/Win64/UnrealCEFSubProcess.exe" Hash="bb174c0306054e32cb581bf92c842017abad1162" />
     <File Name="Engine/Binaries/Win64/UnrealFileServer.exe" Hash="32868af05a8641c001f35f6005a87bee979fe25c" />
     <File Name="Engine/Binaries/Win64/UnrealLightmass.exe" Hash="780d2bd6d79efc19efdad32906a18e25a4c7b168" />
