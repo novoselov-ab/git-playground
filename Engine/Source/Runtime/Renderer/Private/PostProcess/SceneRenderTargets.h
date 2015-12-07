@@ -11,9 +11,9 @@
 #include "../SystemTextures.h"
 #include "RHIStaticStates.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/SceneRenderTargetsGW.h"
-//#endif
+//END:GWGLUE
 
 struct IPooledRenderTarget;
 
@@ -585,9 +585,9 @@ public:
 	/** Whether the preshadow cache render target has been newly allocated and cached shadows need to be re-rendered. */
 	bool bPreshadowCacheNewlyAllocated;
 
-// #ifdef GWGLUE
+//START:GWGLUE
 	FSceneRenderTargetsGW	GWData;
-// #endif
+//END:GWGLUE
 
 private:
 	/** used by AdjustGBufferRefCount */

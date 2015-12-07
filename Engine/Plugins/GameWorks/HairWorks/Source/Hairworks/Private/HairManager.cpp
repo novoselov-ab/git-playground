@@ -47,7 +47,6 @@ FHairManager::FHairManager():
 	FRendererHooks::get().RenderBasePassDynamicCallbacks.Add(std::bind(&FHairManager::RenderToGBuffers, this, _1, _2), 0);
 	FRendererHooks::get().RenderProjectedShadowDepthDynamicCallbacks.Add(std::bind(&FHairManager::RenderDepthDynamic, this, _1, _2, _3, _4, _5), 0);
 
-	FRendererHooks::get().SetHairLightCallbacks.Add(std::bind(&FHairManager::SetHairLightSettings, this, _1, _2, _3), 0);
 	FRendererHooks::get().PostVisibilityFrameSetupCallbacks.Add(std::bind(&FHairManager::SortVisibleDynamicPrimitives, this, _1), 0);
 
 	// These are all for shadows, and don't seem to be required!

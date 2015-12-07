@@ -12,9 +12,9 @@
 #include "HeightfieldLighting.h"
 #include "GlobalDistanceFieldParameters.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/ViewInfoGW.h"
-//#endif
+//END:GWGLUE
 
 // Forward declarations.
 class FPostprocessContext;
@@ -564,10 +564,10 @@ public:
 	/** Custom visibility query for view */
 	ICustomVisibilityQuery* CustomVisibilityQuery;
 
-	// #ifdef GWGLUE
+	//START:GWGLUE
 	/** The GameWorks Glue specific data used in FViewInfo */
 	FViewInfoGW		GWData;
-	// #endif
+	//END:GWGLUE
 
 	/** 
 	 * Initialization constructor. Passes all parameters to FSceneView constructor

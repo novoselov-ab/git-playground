@@ -25,9 +25,9 @@
 #include "../../Engine/Private/SkeletalRenderGPUSkin.h"		// GPrevPerBoneMotionBlur
 #include "EngineModule.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/RendererHooks.h"
-//#endif
+//END:GWGLUE
 
 TAutoConsoleVariable<int32> CVarEarlyZPass(
 	TEXT("r.EarlyZPass"),
@@ -438,9 +438,9 @@ void FDeferredShadingSceneRenderer::RenderBasePassDynamicData(FRHICommandList& R
 		}
 	}
 
-//#ifdef GWGLUE
+//START:GWGLUE
 	FRendererHooks::get().OnRenderBasePassDynamic(View, RHICmdList);
-//#endif
+//END:GWGLUE
 
 	View.SimpleElementCollector.DrawBatchedElements(RHICmdList, View, FTexture2DRHIRef(), EBlendModeFilter::OpaqueAndMasked);
 
@@ -594,9 +594,9 @@ bool FDeferredShadingSceneRenderer::RenderBasePassView(FRHICommandListImmediate&
 	SetupBasePassView(RHICmdList, View.ViewRect, ViewFamily.EngineShowFlags.ShaderComplexity);
 	bDirty |= RenderBasePassStaticData(RHICmdList, View);
 	
-//#ifdef GWGLUE
+//START:GWGLUE
 	//FRendererHooks::get().OnRe
-//#endif
+//END:GWGLUE
 
 	RenderBasePassDynamicData(RHICmdList, View, bDirty);
 

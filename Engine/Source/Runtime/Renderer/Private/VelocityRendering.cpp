@@ -8,9 +8,9 @@
 #include "../../Engine/Private/SkeletalRenderGPUSkin.h"		// GPrevPerBoneMotionBlur
 #include "SceneUtils.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/RendererHooks.h"
-//#endif
+//END:GWGLUE
 
 // Changing this causes a full shader recompile
 static TAutoConsoleVariable<int32> CVarBasePassOutputsVelocity(
@@ -715,9 +715,9 @@ void FDeferredShadingSceneRenderer::RenderVelocitiesInner(FRHICommandListImmedia
 
 		RenderDynamicVelocitiesMeshElementsInner(RHICmdList, View, 0, View.DynamicMeshElements.Num() - 1);
 
-//#ifdef GWGLUE
+//START:GWGLUE
 		FRendererHooks::get().OnRenderVelocitiesInnner(View);
-//#endif
+//END:GWGLUE
 
 	}
 }

@@ -11,9 +11,9 @@
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/RendererHooks.h"
-//#endif
+//END:GWGLUE
 
 static void SetTranslucentRenderTargetAndState(FRHICommandList& RHICmdList, const FViewInfo& View, ETranslucencyPassType TranslucenyPassType, bool bFirstTimeThisFrame = false)
 {
@@ -1082,9 +1082,9 @@ void FDeferredShadingSceneRenderer::RenderTranslucency(FRHICommandListImmediate&
 			{
 				SetTranslucentRenderTargetAndState(RHICmdList, View, TPT_NonSeparateTransluceny);
 //JDM: Is this in the right spot now?
-//#ifdef GWGLUE
+//START:GWGLUE
 			FRendererHooks::get().OnTranslucentViewRender(View, RHICmdList);
-//#endif
+//END:GWGLUE
 				DrawAllTranslucencyPasses(RHICmdList, View, TPT_NonSeparateTransluceny);
 
 

@@ -10,9 +10,9 @@
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
 
-//#ifdef GWGLUE
+//START: GWGLUE
 #include "GameWorks/RendererHooks.h"
-//#endif
+//END: GWGLUE
 
 static TAutoConsoleVariable<float> CVarCSMShadowDepthBias(
 	TEXT("r.Shadow.CSMDepthBias"),
@@ -2081,10 +2081,10 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 	{
 		SCOPED_DRAW_EVENTF(RHICmdList, EventMaskSubjects, TEXT("Stencil Mask Subjects"));
 
-// #ifdef GWGLUE
+//START:GWGLUE
 		//NOTE: HairWorks doesn't want this scope to execute at all if it's being called in a hair pass.
 		FRendererHooks::get().OnProjectedShadowPreShadow(*this, *View, ReceiverPrimitives);
-// #endif
+//END:GWGLUE
 
 		// Set stencil to one.
 		RHICmdList.SetDepthStencilState(TStaticDepthStencilState<
@@ -2368,9 +2368,9 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 			RHICmdList.SetBlendState(TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI());
 		}
 	}
-// #ifdef GWGLUE
+//START:GWGLUE
 	FRendererHooks::get().OnProjectedShadowRenderProjection(*this, *View, RHICmdList);
-// #endif
+//END:GWGLUE
 
 
 	{
@@ -2446,9 +2446,9 @@ void FProjectedShadowInfo::RenderProjection(FRHICommandListImmediate& RHICmdList
 		RHICmdList.Clear(false, FColor(0, 0, 0), false, 0, true, 0, FIntRect());
 	}
 
-// #ifdef GWGLUE
+//START:GWGLUE
 	FRendererHooks::get().OnProjectedShadowRenderProjectionEnd(*this, *View, ViewIndex, RHICmdList);
-// #endif
+//END:GWGLUE
 }
 
 
@@ -2983,9 +2983,9 @@ void FSceneRenderer::RenderProjections(
 				if (ProjectedShadowInfo->FadeAlphas[ViewIndex] > 1.0f / 256.0f)
 				{
 					ProjectedShadowInfo->RenderProjection(RHICmdList, ViewIndex, &View, bForwardShading);
-// #ifdef GWGLUE
+//START:GWGLUE
 					FRendererHooks::get().OnAfterRenderProjection(*ProjectedShadowInfo, View, ViewIndex, RHICmdList);
-// #endif
+//END:GWGLUE
 					if (!bForwardShading)
 					{
 						GRenderTargetPool.VisualizeTexture.SetCheckPoint(RHICmdList, SceneContext.GetLightAttenuation());

@@ -13,9 +13,9 @@
 #include "LightPropagationVolume.h"
 #include "SceneUtils.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/RendererHooks.h"
-//#endif
+//END:GWGLUE
 
 
 IMPLEMENT_UNIFORM_BUFFER_STRUCT(FDeferredLightUniformStruct,TEXT("DeferredLightUniforms"));
@@ -898,10 +898,6 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				FSceneRenderTargets::Get(RHICmdList).GetBufferSizeXY(),
 				*VertexShader,
 				EDRF_UseTriangleOptimization);
-
-//#ifdef GWGLUE
-			FRendererHooks::get().OnSetHairLight(LightSceneInfo->Proxy->GetDirection(), LightSceneInfo->Proxy->GetColor(), LightSceneInfo->Proxy->CastsDynamicShadow() || LightSceneInfo->Proxy->CastsStaticShadow());
-//#endif
 
 		}
 		else

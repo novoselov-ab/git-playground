@@ -12,9 +12,9 @@
 #include "SceneUtils.h"
 #include "PostProcessing.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "RendererHooks.h"
-//#endif
+//END:GWGLUE
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -1962,9 +1962,9 @@ void FSceneRenderer::PostVisibilityFrameSetup()
 			((FSceneViewState*)View.State)->TrimHistoryRenderTargets(Scene);
 		}
 
-// #ifdef GWGLUE
+//START:GWGLUE
 		FRendererHooks::get().OnPostVisibilityFrameSetup(View);
-// #endif
+//END:GWGLUE
 	}
 
 	bool bCheckLightShafts = false;

@@ -48,9 +48,9 @@ FCoreDelegates::FOnActorLabelChanged FCoreDelegates::OnActorLabelChanged;
 FSimpleMulticastDelegate FCoreDelegates::OnShutdownAfterError;
 FSimpleMulticastDelegate FCoreDelegates::OnInit;
 
-//#ifdef GWGLUE
+//START:GWGLUE
 	FSimpleMulticastDelegate FCoreDelegates::OnRHIInit;
-//#endif
+//END:GWGLUE
 
 FSimpleMulticastDelegate FCoreDelegates::OnExit;
 FSimpleMulticastDelegate FCoreDelegates::OnPreExit;

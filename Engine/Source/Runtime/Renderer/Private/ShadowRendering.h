@@ -10,9 +10,9 @@
 #include "ShaderParameterUtils.h"
 #include "SceneCore.h"
 
-//#ifdef GWGLUE
+//START:GWGLUE
 #include "GameWorks/FProjectedShadowInfoGW.h"
-//#endif
+//END:GWGLUE
 
 // Forward declarations.
 class FProjectedShadowInfo;
@@ -613,9 +613,9 @@ public:
 	/** Frustums for each cubemap face, used for object culling one pass point light shadows. */
 	TArray<FConvexVolume> OnePassShadowFrustums;
 
-// #ifdef GWGLUE
+//START:GWGLUE
 	FProjectedShadowInfoGW	GWData;
-// #endif
+//END:GWGLUE
 
 public:
 

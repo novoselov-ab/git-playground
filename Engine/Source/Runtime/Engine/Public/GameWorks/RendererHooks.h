@@ -48,9 +48,6 @@ public:
 	void OnProjectedShadowRenderProjectionEnd(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList);
 	void OnAfterRenderProjection(const FProjectedShadowInfo& ShadowInfo, const FViewInfo &View, int32 ViewIndex, FRHICommandListImmediate& RHICmdList);
 
-	// JDM: This is really hacky - figure out a way to remove this.
-	void OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed);
-
 	void OnPostVisibilityFrameSetup(FViewInfo &View);
 
 	// Allocation/deallocation hooks
@@ -84,8 +81,6 @@ public:
 
 	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, int32 ViewIndex, FRHICommandListImmediate&)>> RenderProjectedShadowRenderProjectionEndCallbacks;
 	FSortedCallbackList<std::function<void(const FProjectedShadowInfo&, const FViewInfo&, int32 ViewIndex, FRHICommandListImmediate&)>> AfterRenderProjectionCallbacks;
-
-	FSortedCallbackList<std::function<void(FVector, FLinearColor, bool)>> SetHairLightCallbacks;
 
 	FSortedCallbackList<std::function<void(FViewInfo&)>> PostVisibilityFrameSetupCallbacks;
 
