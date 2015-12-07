@@ -1375,12 +1375,6 @@ void FProjectedShadowInfo::RenderDepthDynamic(FRHICommandList& RHICmdList, FScen
 		FShadowDepthDrawingPolicyFactory::DrawDynamicMesh(RHICmdList, *FoundView, Context, MeshBatch, false, true, MeshBatchAndRelevance.PrimitiveSceneProxy, MeshBatch.BatchHitProxyId);
 	}
 
-//#ifdef GWGLUE
-// 	FViewMatrices ViewMatrices;
-// 	ViewMatrices.ViewMatrix = FTranslationMatrix(PreShadowTranslation) * SubjectAndReceiverMatrix;
-// 
-// 	FRendererHooks::get().OnProjectedShadowRenderDepthDynamic(FoundView, SubjectPrimitives, ViewMatrices, GetShaderDepthBias(), InvMaxSubjectDepth);
-//#endif
 //START: GWGLUE
 	// Only execute our render if this is the immediate command list, as we can't queue it.
 	if (RHICmdList.IsImmediate())
