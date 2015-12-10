@@ -97,14 +97,6 @@ void FRendererHooks::OnAfterRenderProjection(const FProjectedShadowInfo& ShadowI
 	}
 }
 
-void FRendererHooks::OnSetHairLight(FVector LightDirection, FLinearColor LightColor, bool bHairShadowed)
-{
-	for (auto callback : SetHairLightCallbacks.getCallbacks())
-	{
-		callback->getCallback()(LightDirection, LightColor, bHairShadowed);
-	}
-}
-
 void FRendererHooks::OnPostVisibilityFrameSetup(FViewInfo &View)
 {
 	for (auto callback : PostVisibilityFrameSetupCallbacks.getCallbacks())

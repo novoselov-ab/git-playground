@@ -12,7 +12,7 @@ public:
 
 	void ReleaseHair_GameThread(GFSDK_HairAssetID AssetId);
 
-	bool GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair);
+	bool GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHairWorksAsset* Hair);
 
 	bool IsHair_GameThread(const void* AssetData, unsigned DataSize);
 
@@ -71,19 +71,18 @@ public:
 	TAutoConsoleVariable<float> CVarHairShadowWidthScale;
 	TAutoConsoleVariable<float> CVarHairShadowTexelsScale;
 
-	TAutoConsoleVariable<int> CVarHairVisualizeGuideHairs;
-	TAutoConsoleVariable<int> CVarHairVisualizeSkinnedGuideHairs;
-	TAutoConsoleVariable<int> CVarHairVisualizeHairInteractions;
-	TAutoConsoleVariable<int> CVarHairVisualizeControlVertices;
-	TAutoConsoleVariable<int> CVarHairVisualizeFrames;
-	TAutoConsoleVariable<int> CVarHairVisualizeLocalPos;
-	TAutoConsoleVariable<int> CVarHairVisualizeShadingNormals;
-	TAutoConsoleVariable<int> CVarHairVisualizeGrowthMesh;
-	TAutoConsoleVariable<int> CVarHairVisualizeBones;
-	TAutoConsoleVariable<int> CVarHairVisualizeCapsules;
-	TAutoConsoleVariable<int> CVarHairVisualizeBoundingBox;
-	TAutoConsoleVariable<int> CVarHairVisualizePinConstraints;
-	TAutoConsoleVariable<int> CVarHairVisualizeShadingNormalBone;
+	TAutoConsoleVariable<int> CVarHairVisualizationHair;
+	TAutoConsoleVariable<int> CVarHairVisualizationGuideCurves;
+	TAutoConsoleVariable<int> CVarHairVisualizationSkinnedGuideCurves;
+	TAutoConsoleVariable<int> CVarHairVisualizationControlPoints;
+	TAutoConsoleVariable<int> CVarHairVisualizationGrowthMesh;
+	TAutoConsoleVariable<int> CVarHairVisualizationBones;
+	TAutoConsoleVariable<int> CVarHairVisualizationBoundingBox;
+	TAutoConsoleVariable<int> CVarHairVisualizationCollisionCapsules;
+	TAutoConsoleVariable<int> CVarHairVisualizationHairInteraction;
+	TAutoConsoleVariable<int> CVarHairVisualizationPinConstraints;
+	TAutoConsoleVariable<int> CVarHairVisualizationShadingNormal;
+	TAutoConsoleVariable<int> CVarHairVisualizationShadingNormalCenter;
 
 	TRefCountPtr<IPooledRenderTarget> HairMask;
 	TRefCountPtr<IPooledRenderTarget> HairLightAttenuation;

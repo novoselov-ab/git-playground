@@ -1,0 +1,27 @@
+#pragma once
+
+#include "HairWorksInstance.generated.h"
+
+class UHairWorksMaterial;
+class UHairWorksAsset;
+
+USTRUCT(BlueprintType)
+struct HAIRWORKS_API FHairWorksInstance
+{
+	GENERATED_BODY()
+
+	FHairWorksInstance();
+
+	/** Assign HairWorks asset here. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Asset)
+	UHairWorksAsset* Hair;
+
+	/** Whether override Hair Material of the HairWorks asset. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Asset)
+	bool bOverride = false;
+
+	/** A Hair Material to override the Hair Material of the HairWorks asset. */
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Instanced, Category = Hair)
+	UHairWorksMaterial* HairMaterial;
+};
+

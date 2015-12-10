@@ -1,18 +1,17 @@
 #include "HairworksEditorPCH.h"
-
-#include "Hair.h"
+#include "HairWorksAsset.h"
 
 
 UClass* FAssetTypeActions_Hair::GetSupportedClass() const
 {
-	return UHair::StaticClass();
+	return UHairWorksAsset::StaticClass();
 }
 
 void FAssetTypeActions_Hair::GetResolvedSourceFilePaths(const TArray<UObject*>& TypeAssets, TArray<FString>& OutSourceFilePaths) const
 {
 	for (auto Asset : TypeAssets)
 	{
-		auto Hair = CastChecked<UHair>(Asset);
+		auto Hair = CastChecked<UHairWorksAsset>(Asset);
 		Hair->AssetImportData->ExtractFilenames(OutSourceFilePaths);
 	}
 }

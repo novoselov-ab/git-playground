@@ -12,7 +12,7 @@
 
 using namespace std::placeholders;
 
-FHairManager::FHairManager():
+FHairManager::FHairManager() :
 	CVarHairMsaaLevel(TEXT("r.Hair.MsaaLevel"), 4, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairTemporalAa(TEXT("r.Hair.TemporalAa"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairMsaa(TEXT("r.Hair.Msaa"), 1, TEXT(""), ECVF_RenderThreadSafe),
@@ -22,19 +22,19 @@ FHairManager::FHairManager():
 	CVarHairShadowTransitionScale(TEXT("r.Hair.Shadow.TransitionScale"), 0.1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadowWidthScale(TEXT("r.Hair.Shadow.WidthScale"), 1, TEXT(""), ECVF_RenderThreadSafe),
 	CVarHairShadowTexelsScale(TEXT("r.Hair.Shadow.TexelsScale"), 5, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeGuideHairs(TEXT("r.Hair.VisualizeGuideHairs"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeSkinnedGuideHairs(TEXT("r.Hair.VisualizeSkinnedGuideHairs"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeHairInteractions(TEXT("r.Hair.VisualizeHairInteractions"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeControlVertices(TEXT("r.Hair.VisualizeControlVertices"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeFrames(TEXT("r.Hair.VisualizeFrames"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeLocalPos(TEXT("r.Hair.VisualizeLocalPos"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeShadingNormals(TEXT("r.Hair.VisualizeShadingNormals"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeGrowthMesh(TEXT("r.Hair.VisualizeGrowthMesh"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeBones(TEXT("r.Hair.VisualizeBones"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeCapsules(TEXT("r.Hair.VisualizeCapsules"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeBoundingBox(TEXT("r.Hair.VisualizeBoundingBox"), 1, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizePinConstraints(TEXT("r.Hair.VisualizePinConstraints"), 0, TEXT(""), ECVF_RenderThreadSafe),
-	CVarHairVisualizeShadingNormalBone(TEXT("r.Hair.VisualizeShadingNormalBone"), 0, TEXT(""), ECVF_RenderThreadSafe),
+
+	CVarHairVisualizationHair(TEXT("r.HairWorks.Visualization.Hair"), 1, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationGuideCurves(TEXT("r.HairWorks.Visualization.GuideCurves"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationSkinnedGuideCurves(TEXT("r.HairWorks.Visualization.SkinnedGuideCurves"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationControlPoints(TEXT("r.HairWorks.Visualization.ControlPoints"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationGrowthMesh(TEXT("r.HairWorks.Visualization.GrowthMesh"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationBones(TEXT("r.HairWorks.Visualization.Bones"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationBoundingBox(TEXT("r.HairWorks.Visualization.BoundingBox"), 1, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationCollisionCapsules(TEXT("r.HairWorks.Visualization.CollisionCapsules"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationHairInteraction(TEXT("r.HairWorks.Visualization.HairInteraction"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationPinConstraints(TEXT("r.HairWorks.Visualization.PinConstraints"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationShadingNormal(TEXT("r.HairWorks.Visualization.ShadingNormal"), 0, TEXT(""), ECVF_RenderThreadSafe),
+	CVarHairVisualizationShadingNormalCenter(TEXT("r.HairWorks.Visualization.ShadingNormalCenter"), 0, TEXT(""), ECVF_RenderThreadSafe),
 	HairWorksSdk(nullptr),
 	HWLogger(MakeUnique<FHairWorksLogger>())
 {
@@ -201,7 +201,7 @@ void FHairManager::ReleaseHair_GameThread(GFSDK_HairAssetID AssetId)
 	HairWorksSdk->FreeHairAsset(AssetId);
 }
 
-bool FHairManager::GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair)
+bool FHairManager::GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHairWorksAsset* Hair)
 {
 	check(HairWorksSdk);
 
@@ -224,8 +224,9 @@ bool FHairManager::GetHairInfo(TMap<FName, int32>& OutBoneToIdxMap, UHair* Hair)
 	// Copy descriptor
 	HairWorksSdk->CopyInstanceDescriptorFromAsset(AssetId, HairDescriptor);
 
-	// Copy those values into the UE4 version of this struct.
-	Hair->HairProperties.ImportPropertiesFrom(HairDescriptor);
+	//TODO: FIX ME
+// 	// Copy those values into the UE4 version of this struct.
+// 	Hair->HairProperties.ImportPropertiesFrom(HairDescriptor);
 
 	// Copy bones
 
@@ -366,7 +367,7 @@ void FHairManager::RenderTranslucency(const FViewInfo &View, FRHICommandList& RH
 				continue;
 
 			// Draw hair
-			auto& HairSceneProxy = static_cast<FHairSceneProxy&>(*PrimitiveInfo.Proxy);
+			auto& HairSceneProxy = static_cast<FHairWorksSceneProxy&>(*PrimitiveInfo.Proxy);
 			FVector4 IndirectLight[sizeof(FSHVectorRGB2) / sizeof(FVector4)] = { FVector4(0, 0, 0, 0), FVector4(0, 0, 0, 0), FVector4(0, 0, 0, 0) };
 			if (PrimitiveInfo.IndirectLightingCacheAllocation
 				&& PrimitiveInfo.IndirectLightingCacheAllocation->IsValid()
@@ -418,7 +419,7 @@ void FHairManager::RenderToGBuffers(const FViewInfo& View, FRHICommandList& RHIC
 			if (!ViewRelevance.GWData.bHair)
 				continue;
 
-			FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+			FHairWorksSceneProxy* HairProxy = static_cast<FHairWorksSceneProxy*>(PrimitiveInfo->Proxy);
 
 			HairProxy->DrawToGBuffers(View);
 		}
@@ -446,7 +447,7 @@ void FHairManager::RenderBasePassDynamic(const FViewInfo& View, FRHICommandList&
 			if (!ViewRelevance.GWData.bHair)
 				continue;
 
-			FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+			FHairWorksSceneProxy* HairProxy = static_cast<FHairWorksSceneProxy*>(PrimitiveInfo->Proxy);
 
 			HairProxy->DrawBasePass(View);
 		}
@@ -493,7 +494,7 @@ void FHairManager::RenderProjectedShadows(FRHICommandList& RHICmdList, const FPr
 		if (!ViewRelevance.GWData.bHair)
 			continue;
 
-		FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+		FHairWorksSceneProxy* HairProxy = static_cast<FHairWorksSceneProxy*>(PrimitiveInfo->Proxy);
 		if (HairProxy->isHairInstanceNull())
 			continue;
 
@@ -571,7 +572,7 @@ void FHairManager::RenderDepthDynamic(const FViewInfo* View, TArray<const FPrimi
 			if (!ViewRelevance.GWData.bHair)
 				continue;
 
-			FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+			FHairWorksSceneProxy* HairProxy = static_cast<FHairWorksSceneProxy*>(PrimitiveInfo->Proxy);
 
 			HairProxy->DrawShadow(ViewMatrices, ShaderDepthBias, InvMaxSubjectDepth);
 		}
@@ -700,7 +701,7 @@ void FHairManager::RenderVelocitiesInner(const FViewInfo &View)
 			continue;
 
 		// Draw hair
-		FHairSceneProxy* HairProxy = static_cast<FHairSceneProxy*>(PrimitiveInfo->Proxy);
+		FHairWorksSceneProxy* HairProxy = static_cast<FHairWorksSceneProxy*>(PrimitiveInfo->Proxy);
 
 		HairProxy->DrawVelocity(View, View.PrevViewMatrices);
 	}
@@ -732,24 +733,24 @@ void FHairManager::SortVisibleDynamicPrimitives(FViewInfo &View)
 #if WITH_EDITOR
 void FHairManager::UpdateHairInstanceDescriptor(GFSDK_HairInstanceID InstanceId, GFSDK_HairInstanceDescriptor& HairDesc)
 {
-#define HairVisualizerCVarUpdate(name)	\
-	HairDesc.m_visualize##name = CVarHairVisualize##name.GetValueOnRenderThread() != 0
+#define HairVisualizationCVarUpdate(CVarName, MemberVarName)	\
+	HairDesc.m_visualize##MemberVarName |= GHairManager->CVarHairVisualization##CVarName.GetValueOnRenderThread() != 0
 
-	HairVisualizerCVarUpdate(GuideHairs);
-	HairVisualizerCVarUpdate(SkinnedGuideHairs);
-	HairVisualizerCVarUpdate(HairInteractions);
-	HairVisualizerCVarUpdate(ControlVertices);
-	HairVisualizerCVarUpdate(Frames);
-	HairVisualizerCVarUpdate(LocalPos);
-	HairVisualizerCVarUpdate(ShadingNormals);
-	HairVisualizerCVarUpdate(GrowthMesh);
-	HairVisualizerCVarUpdate(Bones);
-	HairVisualizerCVarUpdate(Capsules);
-	HairVisualizerCVarUpdate(BoundingBox);
-	HairVisualizerCVarUpdate(PinConstraints);
-	HairVisualizerCVarUpdate(ShadingNormalBone);
+	HairDesc.m_drawRenderHairs &= GHairManager->CVarHairVisualizationHair.GetValueOnRenderThread() != 0;
+	HairVisualizationCVarUpdate(GuideCurves, GuideHairs);
+	HairVisualizationCVarUpdate(SkinnedGuideCurves, SkinnedGuideHairs);
+	HairVisualizationCVarUpdate(ControlPoints, ControlVertices);
+	HairVisualizationCVarUpdate(GrowthMesh, GrowthMesh);
+	HairVisualizationCVarUpdate(Bones, Bones);
+	HairVisualizationCVarUpdate(BoundingBox, BoundingBox);
+	HairVisualizationCVarUpdate(CollisionCapsules, Capsules);
+	HairVisualizationCVarUpdate(HairInteraction, HairInteractions);
+	HairVisualizationCVarUpdate(PinConstraints, PinConstraints);
+	HairVisualizationCVarUpdate(ShadingNormal, ShadingNormals);
+	HairVisualizationCVarUpdate(ShadingNormalCenter, ShadingNormalBone);
 
 	HairWorksSdk->UpdateInstanceDescriptor(InstanceId, HairDesc);
+#undef HairVisualizerCVarUpdate
 
 }
 #endif

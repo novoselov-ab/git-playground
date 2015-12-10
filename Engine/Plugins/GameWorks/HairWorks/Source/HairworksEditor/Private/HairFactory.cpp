@@ -2,7 +2,7 @@
 #include "Editor.h"
 #include "HairworksModule.h"
 #include "HairManager.h"
-#include "HairComponent.h"
+#include "HairWorksComponent.h"
 
 /*------------------------------------------------------------------------------
 	UHairFactory.
@@ -10,7 +10,7 @@
 UHairFactory::UHairFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	SupportedClass = UHair::StaticClass();
+	SupportedClass = UHairWorksAsset::StaticClass();
 	bEditorImport = true;
 	bCreateNew = false;
 	Formats.Add(TEXT("apx;HairWorks Asset"));
@@ -51,7 +51,7 @@ UObject* UHairFactory::FactoryCreateBinary(
 
 	// Create asset
 
-	auto Hair = NewObject<UHair>(InParent, Name, Flags);
+	auto Hair = NewObject<UHairWorksAsset>(InParent, Name, Flags);
 
 	Hair->AssetData.SetNumUninitialized(BufferEnd - Buffer);
 	FMemory::Memcpy(Hair->AssetData.GetData(), Buffer, Hair->AssetData.Num());
@@ -61,7 +61,7 @@ UObject* UHairFactory::FactoryCreateBinary(
 
 bool UHairFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
-	auto Hair = Cast<UHair>(Obj);
+	auto Hair = Cast<UHairWorksAsset>(Obj);
 	if (Hair && Hair->AssetImportData)
 	{
 		Hair->AssetImportData->ExtractFilenames(OutFilenames);
@@ -72,7 +72,7 @@ bool UHairFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 
 void UHairFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
-	auto Hair = Cast<UHair>(Obj);
+	auto Hair = Cast<UHairWorksAsset>(Obj);
 	if (Hair && ensure(NewReimportPaths.Num() == 1))
 	{
 		Hair->AssetImportData->UpdateFilenameOnly(NewReimportPaths[0]);
@@ -82,7 +82,7 @@ void UHairFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReim
 EReimportResult::Type UHairFactory::Reimport(UObject* Obj)
 {
 	// Validate asset file.
-	auto Hair = Cast<UHair>(Obj);
+	auto Hair = Cast<UHairWorksAsset>(Obj);
 	if (!Hair)
 	{
 		UE_LOG(LogHairWorksEditor, Error, TEXT("Failed to import hair asset - Hair is null."));
@@ -112,17 +112,17 @@ EReimportResult::Type UHairFactory::Reimport(UObject* Obj)
 	// Load asset
 	Hair->AssetData = FileData;
 
-	GHairManager->GetHairInfo(Hair->HairBoneToIdxMap, Hair);
+//	GHairManager->GetHairInfo(Hair->HairBoneToIdxMap, Hair);
 
 	// Notify components the change.
-	for (TObjectIterator<UHairComponent> It; It; ++It)
-	{
-		if (It->Hair == Hair)
-		{
-			It->HairProperties = Hair->HairProperties;
-			It->RecreateRenderState_Concurrent();
-		}
-	}
+// 	for (TObjectIterator<UHairWorksComponent> It; It; ++It)
+// 	{
+// 		if (It->Hair == Hair)
+// 		{
+// 			It->HairProperties = Hair->HairProperties;
+// 			It->RecreateRenderState_Concurrent();
+// 		}
+// 	}
 
 	// Mark package dirty.
 	(Obj->GetOuter() ? Obj->GetOuter() : Obj)->MarkPackageDirty();
