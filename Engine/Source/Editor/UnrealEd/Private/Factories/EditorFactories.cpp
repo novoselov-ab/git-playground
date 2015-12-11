@@ -6666,6 +6666,20 @@ FText UDestructibleMeshFactory::GetDisplayName() const
 
 #if WITH_APEX
 
+//START:GWGLUE
+bool UDestructibleMeshFactory::FactoryCanImport(const FString& Filename)
+{
+	auto* Asset = CreateApexDestructibleAssetFromFile(Filename);
+	if (Asset != nullptr)
+	{
+		Asset->release();
+		return true;
+	}
+	else
+		return false;
+}
+//END:GWGLUE
+
 UObject* UDestructibleMeshFactory::FactoryCreateBinary
 (
 	UClass*				Class,
