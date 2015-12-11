@@ -132,15 +132,17 @@ Render each hair instance.
 #define __GFSDK_HAIRWORKS_H__
 
 #include "GFSDK_HairWorks_Common.h"
+
+#include <dxgi.h>
 #include <d3d11.h>
 
-#define GFSDK_HAIRWORKS_VERSION 111 // internal version number to match runtime DLLs. 
+#define GFSDK_HAIRWORKS_VERSION 1111 // internal version number to match runtime DLLs. 
 #define GFSDK_HAIRWORKS_FILE_VERSION_STRING "1.1" // version string for .apx file format
 
 /**
 	\brief Dual Quaternion data used for dual quaternion skinning option
 	\details Defines a dual quaternion structure with 2 pairs of gfsdk_float4.  
-				First gfsdk_float4 is interpreted as normal quaternion and the second gfsdk_float4 is interpreted as dual quteranion.
+				First gfsdk_float4 is interpreted as normal quaternion and the second gfsdk_float4 is interpreted as dual quaternion.
 */
 struct gfsdk_dualquaternion
 {
@@ -175,7 +177,7 @@ enum GFSDK_HairInstanceID
 /**
 	\brief Error code for all HairSDK functions.
 	\details Every function under GFSDK_HairSDK returns this error code, based on results.
-	GFSDK_RETURN_OK is returned when the function proceeeds successfully, 
+	GFSDK_RETURN_OK is returned when the function proceeds successfully, 
 	and GFSDK_RETURN_FAIL is returned when there is an error.
 */
 enum GFSDK_HAIR_RETURNCODES
@@ -230,7 +232,7 @@ public:
 
 /**
 	\brief Coordinate system setting for file import and camera view projection
-	\details Handedness of coordinate system may affect internal HairWorks computation depedent on camera such as culling and shading.
+	\details Handedness of coordinate system may affect internal HairWorks computation dependent on camera such as culling and shading.
 */
 enum GFSDK_HAIR_HANDEDNESS_HINT
 {
@@ -332,14 +334,14 @@ struct GFSDK_HairAssetDescriptor
 
 	gfsdk_char*		m_pTextureNames; //!< [OPTIONAL] placeholder to load hair texture file names from apx file. The size must be GFSDK_HAIR_MAX_STRING * GFSDK_HAIR_NUM_TEXTURES
 
-	gfsdk_F32		m_sceneUnit; //!< scene unit scale in centimeters used in the tool that generated this asest
+	gfsdk_F32		m_sceneUnit; //!< scene unit scale in centimeters used in the tool that generated this asset
 								 // Centimeter (default): 1.0.
 								 // Meter: 100.0 
 								 // Inch: 2.54
 								 // Decimeter: 10.0
 
-	GFSDK_HAIR_HANDEDNESS_HINT	m_handedness; //!< handedness of coordniate system this asset used at time of creation/conversion.  See GFSDK_HAIR_HANDEDNESS_HINT.
-	GFSDK_HAIR_UP_AXIS_HINT		m_upAxis;	  //!< up axis of coordniate system this asset used at time of creation/conversion.  See GFSDK_HAIR_UP_AXIS_HINT.
+	GFSDK_HAIR_HANDEDNESS_HINT	m_handedness; //!< handedness of coordinate system this asset used at time of creation/conversion.  See GFSDK_HAIR_HANDEDNESS_HINT.
+	GFSDK_HAIR_UP_AXIS_HINT		m_upAxis;	  //!< up axis of coordinate system this asset used at time of creation/conversion.  See GFSDK_HAIR_UP_AXIS_HINT.
 	
 
 	GFSDK_HairAssetDescriptor::GFSDK_HairAssetDescriptor() :
@@ -494,7 +496,7 @@ enum GFSDK_HAIR_TELEPORT_MODE
 	\details HairWorks provides a unified parameter control for shape, simulation and rendering through GFSDK_HairInstanceDescriptor.
 		These parameters can be updated using HairSDK.UpdateInstanceDescriptor() between function calls to render or simulations.
 	\note Some parameters are length/scale dependent, and all our default values are optimized for CENTIMETERS.
-		If the hair scene uses different unit, all unit dependent paramters can be automatically scaled when GFSDK_HairInstanceDescriptor.m_unitInCentimeters is set correspondingly.
+		If the hair scene uses different unit, all unit dependent parameters can be automatically scaled when GFSDK_HairInstanceDescriptor.m_unitInCentimeters is set correspondingly.
 */
 struct GFSDK_HairInstanceDescriptor
 {
@@ -523,7 +525,7 @@ struct GFSDK_HairInstanceDescriptor
 	gfsdk_F32		m_waveScaleStrand;			//!< [0 - 1.0] waviness at strand level
 	gfsdk_F32		m_waveFreq;					//!< [0 -    ] wave frequency (1.0 = one sine wave along hair length)
 	gfsdk_F32		m_waveFreqNoise;			//!< [0 - 1.0] noise factor for the wave frequency 
-	gfsdk_F32		m_waveRootStraighten;		//!< [0 - 1.0] For some distance from the root, we atteunate waviness so that root itself does not move [0-1]
+	gfsdk_F32		m_waveRootStraighten;		//!< [0 - 1.0] For some distance from the root, we attenuate waviness so that root itself does not move [0-1]
 
 	/// shading controls
 	gfsdk_F32		m_rootAlphaFalloff;			//!< [0 - 1.0] falloff factor for alpha transition from root 
@@ -547,7 +549,7 @@ struct GFSDK_HairInstanceDescriptor
 	gfsdk_F32		m_specularPowerSecondary;	//!< [0 - ] secondary specular power exponent		
 
 	gfsdk_F32		m_glintStrength;			//!< [0 - 1.0] strength of the glint noise
-	gfsdk_F32		m_glintCount;				//!< [0 - 1024] number of glint sparklets along each hair
+	gfsdk_F32		m_glintCount;				//!< [0 - 1024] number of glint sparklers along each hair
 	gfsdk_F32		m_glintExponent;			//!< [0 - ] glint power exponent
 
 	gfsdk_bool		m_castShadows;				//!< [true/false] this hair cast shadows onto the scene
@@ -564,7 +566,7 @@ struct GFSDK_HairInstanceDescriptor
 	gfsdk_float3	m_gravityDir;				//!< [0 - 1.0] gravity force direction (unit vector)
 	gfsdk_F32		m_friction;					//!< [0 - 1.0] friction when capsule collision is used
 	gfsdk_F32		m_massScale;				//!< [In Meters] mass scale for this hair
-	gfsdk_F32		m_inertiaScale;				//!< [0 - 1.0] inertia control. (0: no inertia, 1: full intertia)
+	gfsdk_F32		m_inertiaScale;				//!< [0 - 1.0] inertia control. (0: no inertia, 1: full inertia)
 	gfsdk_F32		m_inertiaLimit;				//!< [In Meters] speed limit where everything gets locked (for teleport etc.)
 	gfsdk_F32		m_interactionStiffness;		//!< [0 - 1.0] how strong the hair interaction force is
 	gfsdk_F32		m_rootStiffness;			//!< [0 - 1.0] attenuation of stiffness away from the root (stiffer at root, weaker toward tip)
@@ -572,7 +574,7 @@ struct GFSDK_HairInstanceDescriptor
 	gfsdk_bool		m_simulate;					//!< [true/false] whether to turn on/off simulation
 	gfsdk_F32		m_stiffness;				//!< [0 - 1.0] how close hairs try to stay within skinned position
 	gfsdk_F32		m_stiffnessStrength;		//!< [0 - 1.0] how strongly hairs move toward the stiffness target
-	gfsdk_F32		m_stiffnessDamping;			//!< [0 - 1.0] how fast hair stiffness gerneated motion decays over time
+	gfsdk_F32		m_stiffnessDamping;			//!< [0 - 1.0] how fast hair stiffness generated motion decays over time
 	gfsdk_F32		m_tipStiffness;				//!< [0 - 1.0] attenuation of stiffness away from the tip (stiffer at tip, weaker toward root)
 	gfsdk_bool		m_useCollision;				//!< [true/false] whether to use the sphere/capsule collision or not for hair/body collision
 	gfsdk_float3	m_wind;						//!< [In Meters] vector force for main wind direction
@@ -632,7 +634,7 @@ struct GFSDK_HairInstanceDescriptor
 	gfsdk_U32		m_colorizeMode;				//!< [GFSDK_HAIR_COLORIZE_MODE] colorize hair based on various terms. See GFSDK_HAIR_COLORIZE_MODE.
 	
 	// texture control
-	GFSDK_HAIR_TEXTURE_CHANNEL m_textureChannels[GFSDK_HAIR_NUM_TEXTURES]; //!< texture chanel for each control textures.  
+	GFSDK_HAIR_TEXTURE_CHANNEL m_textureChannels[GFSDK_HAIR_NUM_TEXTURES]; //!< texture channel for each control textures.  
 	
 	// model to world transform
 	gfsdk_float4x4	m_modelToWorld;				// render time transformation to offset hair from its simulated position
@@ -911,7 +913,7 @@ struct GFSDK_HairShaderConstantBuffer
 };
 
 /**
-	\brief Settings to apply coorindate/unit conversion for hair asset loading.
+	\brief Settings to apply coordinate/unit conversion for hair asset loading.
 	\details When hair asset is exported from various DCC tools, needs may arise to properly convert unit and coordinate system settings to match
 		different setups in game engines. Use the following data structure to provide information about how HairWorks should convert those.
 	\note The axis conversion uses data stored in GFSDK_HairAssetDescriptor (m_upAxis, m_handedness).
@@ -979,7 +981,7 @@ public:
 	virtual GFSDK_HAIR_RETURNCODES CreateHairAsset(const GFSDK_HairAssetDescriptor& assetDesc, GFSDK_HairAssetID *assetID) = 0;
 
 	/**
-		\brief destory/release hair asset data
+		\brief destroy/release hair asset data
 		\param [in] assetID hair asset ID to delete
 		\return GFSDK_RETURN_OK is returned when hair asset was successfully destroyed.
 	*/
@@ -987,7 +989,7 @@ public:
 
 	/**
 		\brief load hair asset data from an (.apx/.apb) file
-		\param [in] filename File name for a valid .apx or .apb file that stores hair asset descirptor and instance descriptor, texture file references
+		\param [in] filename File name for a valid .apx or .apb file that stores hair asset descriptor and instance descriptor, texture file references
 		\param [out] assetID Upon success, assetID is filled by a valid GFSDK_HairAssetID value. assetID must be not NULL.
 		\param [out] info If the info is not null, the info is filled upon success.
 		\param [in] pSettings Conversion settings regarding scene unit, up vector, coordinate handedness, etc. See GFSDK_HairConversionSettings.
@@ -1044,13 +1046,23 @@ public:
 		const GFSDK_HairWorksInfo*			pInfo = 0,
 		const gfsdk_cstr*					pTextureNames = 0) = 0;
 
+	virtual GFSDK_HAIR_RETURNCODES SaveHairAssetToMemory(
+		void*& memory,
+		unsigned& memorySize,
+		gfsdk_new_delete_t* allocator,	// Must not be null if no custom allocator is passed to GFSDK_LoadHairSDK()
+		bool binary,
+		const GFSDK_HairAssetID				assetID,
+		const GFSDK_HairInstanceDescriptor* pInstanceDescriptor = 0,
+		const GFSDK_HairWorksInfo*			pInfo = 0,
+		const gfsdk_cstr*					pTextureNames = 0) = 0;
+
 	/**
 		\brief save hair instance data to an (.apx/.apb) file
 		\param [in] filename File name for a .apx or .apb file to store hair asset descriptor and instance descriptor, texture files.
 		\param [in] instnaceID hair instance ID to save.
 		\param [in] pInfo file header info to be stored. info can be NULL.
 		\param [in] pTextureNames Set texture file names if different from the names in the original asset. If NULL, texture file names loaded from original asset will be saved.
-		\return GFSDK_RETURN_OK is returned if file write was successfull.
+		\return GFSDK_RETURN_OK is returned if file write was successful.
 	*/
 	virtual GFSDK_HAIR_RETURNCODES SaveHairInstanceToFile(
 		gfsdk_cstr							filename, 
@@ -1063,7 +1075,7 @@ public:
 		\param[in] fromAssetID asset id to copy property from
 		\param[in] toAssetID asset id to copy property to
 		\note Useful for importing certain part of asset data.  fromAssetID and toAssetID cannot be the same.
-		\return GFSDK_RETURN_OK is returned if copy operation was successfull.
+		\return GFSDK_RETURN_OK is returned if copy operation was successful.
 	*/
 	virtual GFSDK_HAIR_RETURNCODES CopyAsset(
 		const GFSDK_HairAssetID		fromAssetID, 
@@ -1085,7 +1097,7 @@ public:
 		\brief resample number of cvs to target number
 		\param[in] assetID asset identifier to resample
 		\param[in] targetNbPointsPerHair number of cvs for each hair
-		\return GFSDK_RETURN_OK is returned if resampling was successfull.
+		\return GFSDK_RETURN_OK is returned if resampling was successful.
 	*/
 	virtual GFSDK_HAIR_RETURNCODES ResampleGuideHairs(
 		const GFSDK_HairAssetID		assetID, 
@@ -1268,7 +1280,7 @@ public:
 		\brief Get texture resource for control textures
 		\param [in] hairInstanceID hair instance to update texture
 		\param [in] textureType	which control texture to update?
-		\param [out] ppResource shader resource view for stored control textures are copied, if avaialble.  Otherwise NULL value will be written.
+		\param [out] ppResource shader resource view for stored control textures are copied, if available.  Otherwise NULL value will be written.
 
 		\return GFSDK_HAIR_RETURN_OK is returned when the hair control texture was successfully updated.
 				GFSDK_HAIR_RETURN_INVALID_PARAMETERS is returned if hairInstanceID is invalid.
@@ -1287,7 +1299,10 @@ public:
 		    This function fills SRVs necessary for such mapping.  See sample codes.
 		\param [in] hairInstanceID hair instance to get SRVs
 		\param [out] ppResources array of SRVS, must have at least GFSDK_HAIR_NUM_SHADER_RESOUCES elements.
-			See GFSDK_HAIR_SHADER_RESOURCE_TYPE for the actual resource type.
+			The default resources filled are in following order:
+			GFSDK_HAIR_SHADER_RESOUCE_HAIR_INDICES	: face to hair index buffer
+			GFSDK_HAIR_SHADER_RESOUCE_TANGENTS		: hair tangent buffer
+			GFSDK_HAIR_SHADER_RESOUCE_NORMALS		: hair normal buffer
 		\see GetShaderSRV() to retrieve individual buffers.
 			use GFSDK_HAIR_DECLARE_SHADER_RESOURCES() function in the shader to assign resource slot for each resource.
 	*/
@@ -1316,7 +1331,7 @@ public:
 
 		To move and animate hairs, a typical process is to give it an animation first, by updating 
 		bones used to skin animated hair shapes.  The bone data can be either in the form of 
-		standard linear matrices (HairSDK.UpdateSkinningMatrices) or dual quaterions (HairSDK.UpdateSkinninggfsdk_dualquaternions).
+		standard linear matrices (HairSDK.UpdateSkinningMatrices) or dual quaternions (HairSDK.UpdateSkinninggfsdk_dualquaternions).
 		Once skinning bones are set, we call HairSDK.StepSimulation() to further simulation motion of hairs for each frame.
 		We allow maximum of 4 bones per each hair, see GFSDK_HairAssetDescriptor.m_pBoneIndices and GFSDK_HairAssetDescriptor.m_pBoneWeights.
 	=============================================================================================*/
@@ -1366,7 +1381,7 @@ public:
 		\param [in] timeStepSize simulation time step size in second for one frame.  Typically we sync with display fps (60).
 		\param [in] worldReference This is useful when world containing hair itself is moving, but motion due to moving world is not desired and needs to be canceled out. 
 
-		\return GFSDK_HAIR_RETURN_OK is returned when the hair simulation was sucessfully finished.
+		\return GFSDK_HAIR_RETURN_OK is returned when the hair simulation was successfully finished.
 				GFSDK_HAIR_RETURN_FAIL is returned if it failed.
 	*/
 	virtual GFSDK_HAIR_RETURNCODES StepSimulation( 
@@ -1377,7 +1392,7 @@ public:
 	/**
 		\brief Returns a conservative bounds for hairs.
 		\param [in] hairInstanceID hair instance to get the bounds information
-		\param [inout] bbMin If not NULL, miminum bounds will be written here.
+		\param [inout] bbMin If not NULL, minimum bounds will be written here.
 		\param [inout] bbMax If not NULL, maximum bounds will be written here.
 		\param [in] growthMeshOnly If true, only growth mesh bound (approximate) will be returned.
 		\return GFSDK_HAIR_RETURN_OK is returned when bounds computation was successfully finished.
@@ -1414,9 +1429,9 @@ public:
 				as most LOD controls are based on distance to the camera.
 		\note Users should set proper coordinate system that matches camera definition of each rendering pass.
 				Even in a single engine, different camera definitions may be used (e.g. R.H.S for view camera, L.H.S for shadow camera).
-				Also, it is posible to render hairs onto multiple windows, each with differing camera setups.
+				Also, it is possible to render hairs onto multiple windows, each with differing camera setups.
 				So this setting should be set in each SetViewProjection call.
-				Otherwise, some functionarlity such as backface culling may behave incorrectly.
+				Otherwise, some functionality such as backface culling may behave incorrectly.
 	*/
 	virtual GFSDK_HAIR_RETURNCODES SetViewProjection(
 		const gfsdk_float4x4*		view, 
@@ -1428,7 +1443,7 @@ public:
 	virtual GFSDK_HAIR_RETURNCODES SetViewProjectionForCubeMap(
 		const gfsdk_float4x4 view[6], 
 		const gfsdk_float4x4 proj[6], 
-		const bool visible[6],
+		const bool visibility[6],
 		GFSDK_HAIR_HANDEDNESS_HINT	handedness = GFSDK_HAIR_RIGHT_HANDED
 		) = 0;
 
@@ -1487,7 +1502,7 @@ public:
 	/**
 		\brief render visualization functions
 		\param [in] hairInstanceID hair instance to render
-		\details This function renders all the auxiliary visulization options given in the GFSDK_Hair_InstanceDescriptor.
+		\details This function renders all the auxiliary visualization options given in the GFSDK_Hair_InstanceDescriptor.
 			These can be useful for debugging and verification purposes.
 		\return GFSDK_HAIR_RETURN_OK is returned if it succeeded.
 				GFSDK_HAIR_RETURN_INVALID_PARAMETERS is returned if hairInstanceID is invalid.
@@ -1516,7 +1531,7 @@ public:
 	virtual GFSDK_HAIR_RETURNCODES StartMSAARendering(UINT sampleCount, bool depthCompareLess) = 0;
 
 	/**
-		\brief Once all hairwors render calls are finished, use this function to switch back to original render target and perform MSAA resolve.
+		\brief Once all hairworks render calls are finished, use this function to switch back to original render target and perform MSAA resolve.
 		\return GFSDK_HAIR_RETURN_OK is returned if it succeeded.
 	*/	
 	virtual GFSDK_HAIR_RETURNCODES FinishMSAARendering() = 0;
@@ -1525,7 +1540,7 @@ public:
 		\brief Draw MSAA resolved color buffer to current render target.
 		\return GFSDK_HAIR_RETURN_OK is returned if it succeeded.
 	*/	
-	virtual GFSDK_HAIR_RETURNCODES DrawMSAAColor(bool velocity = false) = 0;
+	virtual GFSDK_HAIR_RETURNCODES DrawMSAAColor() = 0;
 
 	/**
 		\brief Draw MSAA resolved depth buffer to current depth target.
@@ -1778,7 +1793,7 @@ public:
 	\param [in] version Version should match between this header and the dll
 	\param [in] pCustomAllocator If not NULL, HairWorks will use this allocator for all internal CPU memory allocation
 	\param [in] pCustomLogHandler If not NULL, HairWorks will use this log handler to process the log messages
-	\param [in] debugMode HairWorks internaly use only, this value must be zero
+	\param [in] debugMode HairWorks internally use only, this value must be zero
 	\return The HairWorks SDK instance pointer will be returned.
 	*/
 inline GFSDK_HairSDK* GFSDK_LoadHairSDK(

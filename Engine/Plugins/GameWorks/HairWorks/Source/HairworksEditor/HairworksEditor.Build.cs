@@ -27,7 +27,9 @@ namespace UnrealBuildTool.Rules
     				"Engine",
                     "UnrealEd",
 					"RenderCore",
-                    "Renderer"
+                    "Renderer",
+				    "PropertyEditor"
+
 				}
 				);
 

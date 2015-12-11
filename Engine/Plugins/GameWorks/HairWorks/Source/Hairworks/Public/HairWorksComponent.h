@@ -29,9 +29,6 @@ public:
 #endif
 
 protected:
-	UPROPERTY()
-	USkinnedMeshComponent* ParentSkeleton;
-
 	/** Bone remapping */
 	TArray<uint16> BoneIndices;
 

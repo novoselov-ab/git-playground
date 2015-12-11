@@ -1,8 +1,7 @@
 #include "HairworksPCH.h"
 
-UHairWorksComponent::UHairWorksComponent(const class FObjectInitializer& PCIP)
-	: Super(PCIP),
-	ParentSkeleton(nullptr)
+UHairWorksComponent::UHairWorksComponent(const FObjectInitializer& PCIP)
+	: Super(PCIP)
 {
 	// No need to select
 	bSelectable = false;
@@ -53,9 +52,6 @@ void UHairWorksComponent::OnAttachmentChanged()
 {
 	Super::OnAttachmentChanged();
 
-	// Parent as skeleton
-	ParentSkeleton = Cast<USkinnedMeshComponent>(AttachParent);
-
 	// Update proxy
 	SetupBoneMapping();
 	SendHairDynamicData();	// For correct initial visual effect
@@ -88,22 +84,19 @@ void UHairWorksComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent
 {
 	Super::PostEditChangeChainProperty(PropertyChangedEvent);
 
-	UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
-	FName PropertyName = PropertyThatChanged != NULL ? PropertyThatChanged->GetFName() : NAME_None;
 
-	if (PropertyName != NAME_None)
+	if (MemberPropertyName != NAME_None)
 	{
-		if (PropertyName == Name_HairInstance)
+		UProperty* PropertyThatChanged = PropertyChangedEvent.Property;
+		FName PropertyName = PropertyThatChanged != NULL ? PropertyThatChanged->GetFName() : NAME_None;
+
+		if (PropertyName == Name_Hair)
 		{
-			// If the user has changed the hair asset assigned to the HairInstance, then copy all of the properties from the new assets material into the instances material.
-			if (MemberPropertyName == Name_Hair)
+			for (TFieldIterator<UProperty> PropIt(UHairWorksMaterial::StaticClass()); PropIt; ++PropIt)
 			{
-				for (TFieldIterator<UProperty> PropIt(UHairWorksMaterial::StaticClass()); PropIt; ++PropIt)
-				{
-					auto Property = *PropIt;
-					Property->CopyCompleteValue_InContainer(HairInstance.HairMaterial, HairInstance.Hair->HairMaterial);
-				}
+				auto Property = *PropIt;
+				Property->CopyCompleteValue_InContainer(HairInstance.HairMaterial, HairInstance.Hair->HairMaterial);
 			}
 		}
 	}
@@ -162,6 +155,8 @@ void UHairWorksComponent::SendHairDynamicData()
 		return;
 
 	TSharedPtr<FHairWorksSceneProxy::FDynamicRenderData> DynamicData = MakeShareable<FHairWorksSceneProxy::FDynamicRenderData>(new FHairWorksSceneProxy::FDynamicRenderData());
+
+	auto ParentSkeleton = Cast<USkinnedMeshComponent>(AttachParent);
 
 	if (ParentSkeleton != nullptr && ParentSkeleton->SkeletalMesh != nullptr)
 	{
@@ -223,6 +218,8 @@ void UHairWorksComponent::SendHairDynamicData()
 
 void UHairWorksComponent::SetupBoneMapping()
 {
+	auto ParentSkeleton = Cast<USkinnedMeshComponent>(AttachParent);
+
 	if (HairInstance.Hair == nullptr || ParentSkeleton == nullptr || ParentSkeleton->SkeletalMesh == nullptr)
 		return;
 

@@ -56,6 +56,8 @@ public:
 
 	GFSDK_HairSDK* GetHairworksSdk() { return HairWorksSdk; }
 
+	GFSDK_HairConversionSettings HairWorksConversionSettings;
+
 	// Add light settings
 	FVector				LightDirection;
 	FLinearColor		LightColor;
