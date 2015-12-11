@@ -2,12 +2,12 @@
 
 #include "Factories/Factory.h"
 #include "EditorReimportHandler.h"
-#include "HairFactory.generated.h"
+#include "HairWorksFactory.generated.h"
 
 class UHairWorksAsset;
 
 UCLASS()
-class UHairFactory : public UFactory, public FReimportHandler
+class UHairWorksFactory : public UFactory, public FReimportHandler
 {
 	GENERATED_UCLASS_BODY()
 

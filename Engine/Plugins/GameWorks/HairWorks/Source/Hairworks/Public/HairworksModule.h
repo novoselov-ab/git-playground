@@ -2,10 +2,10 @@
 
 #include "ModuleInterface.h"
 
-class FHairManager;
+class FHairWorksManager;
 class GFSDK_HairSDK;
 
-extern HAIRWORKS_API FHairManager* GHairManager;
+extern HAIRWORKS_API FHairWorksManager* GHairManager;
 
 class FHairworksModule : public IModuleInterface
 {
@@ -15,7 +15,7 @@ public:
 	virtual void ShutdownModule() override;
 	
 private:
-	TUniquePtr<FHairManager>		HairManager;
+	TUniquePtr<FHairWorksManager>		HairManager;
 };
 
 //////////////////////////////////////////////////////////////////////////

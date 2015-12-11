@@ -3,11 +3,11 @@
 class FHairWorksLogger;
 
 
-class HAIRWORKS_API FHairManager
+class HAIRWORKS_API FHairWorksManager
 {
 public:
-	FHairManager();
-	~FHairManager();
+	FHairWorksManager();
+	~FHairWorksManager();
 
 
 	void ReleaseHair_GameThread(GFSDK_HairAssetID AssetId);

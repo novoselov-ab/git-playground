@@ -2,7 +2,7 @@
 #include "Editor.h"
 #include "HairWorksMaterial.h"
 #include "HairworksModule.h"
-#include "HairManager.h"
+#include "HairWorksManager.h"
 #include "HairWorksComponent.h"
 #include "SkelImport.h"
 #include "HairWorksAsset.h"
@@ -10,7 +10,7 @@
 /*------------------------------------------------------------------------------
 	UHairFactory.
 ------------------------------------------------------------------------------*/
-UHairFactory::UHairFactory(const FObjectInitializer& ObjectInitializer)
+UHairWorksFactory::UHairWorksFactory(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	SupportedClass = UHairWorksAsset::StaticClass();
@@ -20,7 +20,7 @@ UHairFactory::UHairFactory(const FObjectInitializer& ObjectInitializer)
 	Formats.Add(TEXT("apb;HairWorks Asset"));
 }
 
-bool UHairFactory::FactoryCanImport(const FString& Filename)
+bool UHairWorksFactory::FactoryCanImport(const FString& Filename)
 {
 	// Skip APEX file that is not hair.
 	TArray<uint8> Buffer;
@@ -62,7 +62,7 @@ bool UHairFactory::FactoryCanImport(const FString& Filename)
 // 	return Hair;
 // }
 
-UObject* UHairFactory::FactoryCreateBinary(
+UObject* UHairWorksFactory::FactoryCreateBinary(
 	UClass*				Class,
 	UObject*			InParent,
 	FName				Name,
@@ -109,7 +109,7 @@ UObject* UHairFactory::FactoryCreateBinary(
 }
 
 
-bool UHairFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
+bool UHairWorksFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 {
 	auto Hair = Cast<UHairWorksAsset>(Obj);
 	if (Hair && Hair->AssetImportData)
@@ -120,7 +120,7 @@ bool UHairFactory::CanReimport(UObject* Obj, TArray<FString>& OutFilenames)
 	return false;
 }
 
-void UHairFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
+void UHairWorksFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReimportPaths)
 {
 	auto Hair = Cast<UHairWorksAsset>(Obj);
 	if (Hair && ensure(NewReimportPaths.Num() == 1))
@@ -180,7 +180,7 @@ void UHairFactory::SetReimportPaths(UObject* Obj, const TArray<FString>& NewReim
 // 	return EReimportResult::Succeeded;
 // }
 
-EReimportResult::Type UHairFactory::Reimport(UObject* Obj)
+EReimportResult::Type UHairWorksFactory::Reimport(UObject* Obj)
 {
 	// Finish render thread work.
 	FlushRenderingCommands();
@@ -291,7 +291,7 @@ EReimportResult::Type UHairFactory::Reimport(UObject* Obj)
 }
 
 // C&P of the one in FSkeletalMeshImportData as it's not exported.
-FString UHairFactory::FixupBoneName(const FString &InBoneName)
+FString UHairWorksFactory::FixupBoneName(const FString &InBoneName)
 {
 	FString BoneName = InBoneName;
 
@@ -302,7 +302,7 @@ FString UHairFactory::FixupBoneName(const FString &InBoneName)
 	return BoneName;
 }
 
-void UHairFactory::InitHairAssetInfo(UHairWorksAsset& Hair, GFSDK_HairAssetID HairAssetId, const GFSDK_HairInstanceDescriptor* NewInstanceDesc)
+void UHairWorksFactory::InitHairAssetInfo(UHairWorksAsset& Hair, GFSDK_HairAssetID HairAssetId, const GFSDK_HairInstanceDescriptor* NewInstanceDesc)
 {
 	auto HairWorksSDK = GHairManager->GetHairworksSdk();
 
