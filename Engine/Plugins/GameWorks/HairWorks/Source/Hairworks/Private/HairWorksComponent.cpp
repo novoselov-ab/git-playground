@@ -28,6 +28,9 @@ FPrimitiveSceneProxy* UHairWorksComponent::CreateSceneProxy()
 {
 	auto owner = this->GetOwner();
 
+	// Call this to make sure the sim timer is ticking
+	GHairManager->EnsureHairSetup();
+
 	UE_LOG(LogHairWorks, Log, TEXT("HC:CreateSceneProxy for Hair %d, parent %d"), GetUniqueID(), owner->GetUniqueID());
 
 	if (HairInstance.Hair == nullptr)
@@ -70,7 +73,13 @@ FBoxSphereBounds UHairWorksComponent::CalcBounds(const FTransform& LocalToWorld)
 	if (GHairManager->GetHairworksSdk()->GetBounds(HairProxy->getHairInstanceID(), &Min, &Max) != GFSDK_HAIR_RETURN_OK)
 		return FBoxSphereBounds(EForceInit::ForceInitToZero);
 
-	return FBoxSphereBounds(FBox(FVector(Min.x, Min.y, Min.z), FVector(Max.x, Max.y, Max.z)));
+	auto result = FBoxSphereBounds(FBox(FVector(Min.x, Min.y, Min.z), FVector(Max.x, Max.y, Max.z)));
+
+	result = result.TransformBy(LocalToWorld);
+
+//	UE_LOG(LogHairWorks, Log, TEXT("ID: %s HW Bounds: %s"), *GetName(), *result.ToString());
+
+	return result;
 }
 
 
@@ -154,9 +163,16 @@ void UHairWorksComponent::SendHairDynamicData()
 	if (!SceneProxy)
 		return;
 
-	TSharedPtr<FHairWorksSceneProxy::FDynamicRenderData> DynamicData = MakeShareable<FHairWorksSceneProxy::FDynamicRenderData>(new FHairWorksSceneProxy::FDynamicRenderData());
 
 	auto ParentSkeleton = Cast<USkinnedMeshComponent>(AttachParent);
+
+	if (ParentSkeleton == nullptr)
+	{
+		// No parent? Don't do any of this.
+		return;
+	}
+
+	TSharedPtr<FHairWorksSceneProxy::FDynamicRenderData> DynamicData = MakeShareable<FHairWorksSceneProxy::FDynamicRenderData>(new FHairWorksSceneProxy::FDynamicRenderData());
 
 	if (ParentSkeleton != nullptr && ParentSkeleton->SkeletalMesh != nullptr)
 	{
@@ -171,6 +187,8 @@ void UHairWorksComponent::SendHairDynamicData()
 			DynamicData->BoneMatrices[Idx] = ParentSkeleton->SkeletalMesh->RefBasesInvMatrix[IdxInParent] * Matrix;
 		}
 	}
+
+	int numBones = DynamicData->BoneMatrices.Num();
 
 	// Setup material
 	DynamicData->Textures.SetNumZeroed(GFSDK_HAIR_NUM_TEXTURES);

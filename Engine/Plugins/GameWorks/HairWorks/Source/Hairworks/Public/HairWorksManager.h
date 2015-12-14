@@ -41,12 +41,9 @@ public:
 
 	void SortVisibleDynamicPrimitives(FViewInfo &View);
 
-	void StartMsaa();
-	void FinishMsaa();
-	void DrawPostColor(bool bVelocity = false);
-	void DrawPostDepth();
+	// Called by the hair components to make sure we're ticking the sim
+	void EnsureHairSetup();
 
-	void StepSimulation();
 
 #if WITH_EDITOR
 	// Used for injection of console variables.
@@ -58,14 +55,6 @@ public:
 
 	GFSDK_HairConversionSettings HairWorksConversionSettings;
 
-	// Add light settings
-	FVector				LightDirection;
-	FLinearColor		LightColor;
-	bool				bLightShadowed;
-
-	TAutoConsoleVariable<int> CVarHairMsaaLevel;
-	TAutoConsoleVariable<int> CVarHairTemporalAa;
-	TAutoConsoleVariable<int> CVarHairMsaa;
 	TAutoConsoleVariable<int> CVarHairShadows;
 	TAutoConsoleVariable<float> CVarHairOutputVelocity;
 	TAutoConsoleVariable<float> CVarHairShadowBiasScale;
@@ -96,6 +85,12 @@ private:
 
 	FDelegateHandle		RHIInitHandle;
 	FDelegateHandle		OnExitHandle;
+
+	FTimerHandle		SimTimerHandle;
+
+	// Private as it's called by a timer
+	void StepSimulation();
+
 
 	void FreeResources();
 	void PostRHIInitLoad();

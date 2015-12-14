@@ -107,7 +107,7 @@ void Main(
 			float4 OutGBufferE = 0;
 		#endif
 
-		#if 0 //WRITES_VELOCITY_TO_GBUFFER
+		#if WRITES_VELOCITY_TO_GBUFFER
 			{
 				// 2d velocity, includes camera an object motion
 			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR

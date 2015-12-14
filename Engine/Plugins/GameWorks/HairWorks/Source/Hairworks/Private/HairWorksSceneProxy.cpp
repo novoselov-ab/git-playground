@@ -432,6 +432,8 @@ void FHairWorksSceneProxy::UpdateDynamicData_RenderThread(TSharedPtr<FDynamicRen
 
 	auto HairworksSdk = GHairManager->GetHairworksSdk();
 
+	int numBones = DynamicData->BoneMatrices.Num();
+
 	// Update bones
 	HairworksSdk->UpdateSkinningMatrices(HairInstanceId, DynamicData->BoneMatrices.Num(), (gfsdk_float4x4*)DynamicData->BoneMatrices.GetData());
 

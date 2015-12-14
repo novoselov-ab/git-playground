@@ -594,10 +594,6 @@ bool FDeferredShadingSceneRenderer::RenderBasePassView(FRHICommandListImmediate&
 	SetupBasePassView(RHICmdList, View.ViewRect, ViewFamily.EngineShowFlags.ShaderComplexity);
 	bDirty |= RenderBasePassStaticData(RHICmdList, View);
 	
-//START:GWGLUE
-	//FRendererHooks::get().OnRe
-//END:GWGLUE
-
 	RenderBasePassDynamicData(RHICmdList, View, bDirty);
 
 	return bDirty;
@@ -1001,7 +997,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		ServiceLocalQueue();
 	}
 
+//START:GWGLUE
 	FRendererHooks::get().OnRenderMidPoint(Views, RHICmdList);
+//END:GWGLUE
 
 	// Clear the G Buffer render targets
 	bool bIsGBufferCurrent = false;
