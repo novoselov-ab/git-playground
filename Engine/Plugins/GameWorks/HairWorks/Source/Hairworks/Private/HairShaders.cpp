@@ -24,6 +24,9 @@ FHairWorksPs::FHairWorksPs(const ShaderMetaType::CompiledShaderInitializerType& 
 	GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES.Bind(Initializer.ParameterMap, TEXT("GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES"));
 	GFSDK_HAIR_RESOURCE_TANGENTS.Bind(Initializer.ParameterMap, TEXT("GFSDK_HAIR_RESOURCE_TANGENTS"));
 	GFSDK_HAIR_RESOURCE_NORMALS.Bind(Initializer.ParameterMap, TEXT("GFSDK_HAIR_RESOURCE_NORMALS"));
+	GFSDK_HAIR_RESOURCE_MASTER_POSITIONS.Bind(Initializer.ParameterMap, TEXT("GFSDK_HAIR_RESOURCE_MASTER_POSITIONS"));
+	GFSDK_HAIR_RESOURCE_MASTER_PREV_POSITIONS.Bind(Initializer.ParameterMap, TEXT("GFSDK_HAIR_RESOURCE_MASTER_PREV_POSITIONS"));
+
 }
 
 FHairWorksPs::FHairWorksPs()
@@ -35,7 +38,12 @@ bool FHairWorksPs::Serialize(FArchive& Ar)
 {
 	bool bShaderHasOutdatedParameters = FGlobalShader::Serialize(Ar);
 
-	Ar << HairConstantBuffer << TextureSampler << RootColorTexture << TipColorTexture << SpecularColorTexture << GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES << GFSDK_HAIR_RESOURCE_TANGENTS << GFSDK_HAIR_RESOURCE_NORMALS;
+	Ar << HairConstantBuffer << TextureSampler << RootColorTexture << TipColorTexture << SpecularColorTexture
+		<< GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES
+		<< GFSDK_HAIR_RESOURCE_TANGENTS
+		<< GFSDK_HAIR_RESOURCE_NORMALS
+		<< GFSDK_HAIR_RESOURCE_MASTER_POSITIONS
+		<< GFSDK_HAIR_RESOURCE_MASTER_PREV_POSITIONS;
 
 	return bShaderHasOutdatedParameters;
 }

@@ -111,7 +111,6 @@ void FHairWorksManager::StepSimulation()
 		return;
 
 	static uint32 LastFrameNumber = -1;
-//	if (LastFrameNumber == -1)
 	if (LastFrameNumber != GFrameNumberRenderThread)
 	{
 		LastFrameNumber = GFrameNumberRenderThread;
@@ -360,6 +359,9 @@ void FHairWorksManager::RenderToGBuffers(const FViewInfo& View, FRHICommandList&
 {
 	if (View.GWData.bHasHair)
 	{
+		SCOPED_DRAW_EVENT(RHICmdList, RenderHairViewsToGBuffers);
+
+
 		// NOTE: No messing with RTs! We're rendering to UE4s GBuffers!
 
 		for (auto MeshIdx = 0; MeshIdx < View.VisibleDynamicPrimitives.Num(); ++MeshIdx)
@@ -373,7 +375,6 @@ void FHairWorksManager::RenderToGBuffers(const FViewInfo& View, FRHICommandList&
 
 			HairProxy->DrawToGBuffers(View);
 		}
-
 	}
 }
 

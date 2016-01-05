@@ -38,6 +38,11 @@ void FHairWorksSceneProxy::DrawToGBuffers(const FSceneView& View)
 	if (HairInstanceId == GFSDK_HairInstanceID_NULL)
 		return;
 
+	// Set states
+	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
+
+	SCOPED_DRAW_EVENT(RHICmdList, RenderHairToGBuffers);
+
 	// Grab the hairdesc
 	GFSDK_HairInstanceDescriptor CachedHairDescriptor;
 	GHairManager->GetHairworksSdk()->CopyCurrentInstanceDescriptor(HairInstanceId, CachedHairDescriptor);
@@ -53,13 +58,15 @@ void FHairWorksSceneProxy::DrawToGBuffers(const FSceneView& View)
 	GHairManager->GetHairworksSdk()->UpdateInstanceDescriptor(HairInstanceId, CachedHairDescriptor);	// Mainly for simulation.
 #endif
 
-	// Set states
-	auto& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
 // 	//JDM:FIXME: Supposed to have depth write
 // 	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<false>::GetRHI());
 // 
 // 	RHICmdList.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_SourceAlpha, BF_InverseSourceAlpha>::GetRHI());
+
+	RHICmdList.SetBlendState(TStaticBlendState<>::GetRHI());
+//	RHICmdList.SetDepthStencilState(TStaticDepthStencilState<true, CF_GreaterEqual, true, CF_Always, SO_Keep, SO_Keep, SO_Replace, true, CF_Always, SO_Keep, SO_Keep, SO_Replace>::GetRHI());
+
 
 	// Pass camera inforamtin
 	auto ViewMatrices = View.ViewMatrices;
@@ -439,6 +446,7 @@ void FHairWorksSceneProxy::UpdateDynamicData_RenderThread(TSharedPtr<FDynamicRen
 
 	// Update normal center bone
 	auto HairDesc = DynamicData->HairInstanceDesc;
+	HairDesc.m_simulate = false;
 
 	if (DynamicData->NormalCenterBoneIndex != -1)
 		HairDesc.m_hairNormalBoneIndex = DynamicData->NormalCenterBoneIndex;

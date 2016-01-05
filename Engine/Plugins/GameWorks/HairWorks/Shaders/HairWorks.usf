@@ -4,12 +4,19 @@
 #include "ReflectionEnvironmentShared.usf"
 #include "BRDF.usf"
 #include "SHCommon.usf"
+#include "VelocityCommon.usf"
+
+#define WRITES_VELOCITY_TO_GBUFFER		(OUTPUT_GBUFFER_VELOCITY && (MATERIALBLENDING_SOLID || MATERIALBLENDING_MASKED))
+
+
 #include "DeferredShadingCommon.usf"		// FGBufferData
 struct FVertexFactoryInterpolantsVSToPS
 {};
 #include "ShadowDepthCommon.usf"
 
 #define GFSDK_HAIR_DECLARE_VELOCITY_ATTR
+
+
 
 #include "GFSDK_HairWorks_ShaderCommon.usf"
 
@@ -22,6 +29,23 @@ Texture2D TipColorTexture;
 Texture2D SpecularColorTexture;
 
 GFSDK_HAIR_DECLARE_SHADER_RESOURCES(t10, t11, t12, t13, t14);
+ 
+float3 getBarycentricCenter(GFSDK_HAIR_POSITION_BUFFER_TYPE buff, float2 coords, int3 vertIndices)
+{
+	float3 v0 = buff.Load( vertIndices[0] ).xyz;
+	float3 v1 = buff.Load( vertIndices[1] ).xyz;
+	float3 v2 = buff.Load( vertIndices[2] ).xyz;
+	
+	return coords.x * v0 + coords.y * v1 + (1.0f - coords.x - coords.y) * v2;
+}
+ 
+float3 getLerpedWorldPosForHair(GFSDK_HAIR_POSITION_BUFFER_TYPE buff, float hairFrac, float2 coords, int3 vertIndices0, int3 vertIndices1)
+{
+	float3 p0 = getBarycentricCenter(buff, coords, vertIndices0);
+	float3 p1 = getBarycentricCenter(buff, coords, vertIndices1);
+	
+	return lerp(p0, p1, hairFrac);
+}
  
 void Main(
 	GFSDK_Hair_PixelShaderInput input
@@ -109,15 +133,34 @@ void Main(
 
 		#if WRITES_VELOCITY_TO_GBUFFER
 			{
-				// 2d velocity, includes camera an object motion
-			#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
-				float2 Velocity = Calculate2DVelocity(BasePassInterpolants.VelocityScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
-			#else
-				float2 Velocity = Calculate2DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
-			#endif
+				float		hairtex		= shaderAttributes.texcoords.z; 
+				const int	numPoints	= HairConstantBuffer.strandPointCount;
+				float		hairCoord	= hairtex * float(numPoints-1); 
+				int			vertexID0	= floor(hairCoord); 
+				int			vertexID1	= min(vertexID0 + 1, numPoints-1); 
+				float		hairFrac	= frac(hairCoord); 
+		
+				int3 hairIndices = floor(GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES.Load(input.primitiveID));
+				int3 rootIndices =  hairIndices * numPoints;
+		
+				int3	vertexIndices0 = rootIndices + int3(vertexID0, vertexID0, vertexID0);
+				int3	vertexIndices1 = rootIndices + int3(vertexID1, vertexID1, vertexID1);
+		
+				float2	coords = GFSDK_Hair_UnpackFloat2(input.coords);
+
+				//float hairFrac, float2 coords, int3 vertIndices0, int3 vertIndices1)
+				float3 wp0 = getLerpedWorldPosForHair(GFSDK_HAIR_RESOURCE_MASTER_PREV_POSITIONS, hairFrac, coords, vertexIndices0, vertexIndices1);
+				float3 wp1 = getLerpedWorldPosForHair(GFSDK_HAIR_RESOURCE_MASTER_POSITIONS, hairFrac, coords, vertexIndices0, vertexIndices1);
+				
+				float sp0 = mul(float4(wp0.xyz, 1), View.PrevTranslatedWorldToClip);
+				float sp1 = mul(float4(wp1.xyz, 1), View.TranslatedWorldToClip);
+			
+				// Velocity
+				float2 Velocity = Calculate2DVelocity(sp0, sp1);
 
 				// Make sure not to touch 0,0 which is clear color
-				GBuffer.Velocity = float4(EncodeVelocityToTexture(Velocity), 0, 0) * BasePassInterpolants.VelocityPrevScreenPosition.z;
+//				GBuffer.Velocity = float4(EncodeVelocityToTexture(Velocity), 0, 0);// * BasePassInterpolants.VelocityPrevScreenPosition.z;
+				GBuffer.Velocity = float4(0.5, 0.5, 0, 0);// * BasePassInterpolants.VelocityPrevScreenPosition.z;
 			}
 		#else
 			GBuffer.Velocity = 0;

@@ -50,6 +50,8 @@ protected:
 	FShaderResourceParameter	GFSDK_HAIR_RESOURCE_FACE_HAIR_INDICES;
 	FShaderResourceParameter	GFSDK_HAIR_RESOURCE_TANGENTS;
 	FShaderResourceParameter	GFSDK_HAIR_RESOURCE_NORMALS;
+	FShaderResourceParameter	GFSDK_HAIR_RESOURCE_MASTER_POSITIONS;
+	FShaderResourceParameter	GFSDK_HAIR_RESOURCE_MASTER_PREV_POSITIONS;
 };
 
 
