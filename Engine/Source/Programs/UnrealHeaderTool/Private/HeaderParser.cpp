@@ -1776,12 +1776,12 @@ UScriptStruct* FHeaderParser::CompileStructDeclaration(FClasses& AllClasses, FUn
 	// Create.
 	UScriptStruct* Struct = new(EC_InternalUseOnlyConstructor, SourceFile.GetPackage(), *EffectiveStructName, RF_Public) UScriptStruct(FObjectInitializer(), BaseStruct);
 
-	AddModuleRelativePathToMetadata(Struct, MetaData);
-
 	Scope->AddType(Struct);
 	FScope::AddTypeScope(Struct, &SourceFile.GetScope().Get());
 
 	AddTypeDefinition(SourceFile, Struct, InputLine);
+
+	AddModuleRelativePathToMetadata(Struct, MetaData);
 
 	// Check to make sure the syntactic native prefix was set-up correctly.
 	// If this check results in a false positive, it will be flagged as an identifier failure.
@@ -7098,6 +7098,12 @@ void FHeaderParser::SimplifiedClassParse(const TCHAR* InBuffer, TArray<FSimplifi
 
 			// Stub out the comments, ignoring anything inside literal strings.
 			Pos = StrLine.Find(TEXT("//"));
+
+			// Check if first slash is end of multiline comment and adjust position if necessary.
+			if (Pos > 0 && StrLine[Pos - 1] == TEXT('*'))
+			{
+				++Pos;
+			}
 			if (Pos >= 0)
 			{
 				if (StrBegin == INDEX_NONE || Pos < StrBegin || Pos > StrEnd)

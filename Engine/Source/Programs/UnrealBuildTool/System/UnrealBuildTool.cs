@@ -65,7 +65,10 @@ namespace UnrealBuildTool
         /** The Unreal project directory.  This should always be valid when compiling game projects.  Engine targets and program targets may not have a UProject set. */
         static string UProjectPath = "";
 
-        /** This is set to true during UBT startup, after it is safe to be accessing the IsGatheringBuild and IsAssemblingBuild properties.  Never access this directly. */
+		/** The Remote Ini directory.  This should always be valid when compiling using a remote server. */
+		static string RemoteIniPath = "";
+
+		/** This is set to true during UBT startup, after it is safe to be accessing the IsGatheringBuild and IsAssemblingBuild properties.  Never access this directly. */
         private static bool bIsSafeToCheckIfGatheringOrAssemblingBuild = false;
 
 		/** True if this run of UBT should only invalidate Makefile. */
@@ -176,6 +179,15 @@ namespace UnrealBuildTool
         {
             return UProjectPath;
         }
+
+		/// <summary>
+		/// The Unreal remote tool ini directory.  This should be valid if compiling using a remote server */
+		/// </summary>
+		/// <returns>The directory path</returns>
+		static public string GetRemoteIniPath()
+		{
+			return RemoteIniPath;
+		}
 
         /// <summary>
         /// The Unreal project source directory.  This should always be valid when compiling game projects.  Engine targets and program targets may not have a UProject set. */
@@ -544,6 +556,10 @@ namespace UnrealBuildTool
                 UProjectFile = InArg;
                 bSetupProject = true;
             }
+			else if (LowercaseArg.StartsWith("-remoteini="))
+			{
+				RemoteIniPath = InArg.Substring(11);
+			}
             else
             {
                 return false;
@@ -1717,7 +1733,13 @@ namespace UnrealBuildTool
                         UBTMakefile = LoadUBTMakefile( UBTMakefilePath, out ReasonNotLoaded );
 
 						// Invalid makefile if only modules have changed
-						if (UBTMakefile != null && !TargetDescs.SelectMany(x => x.OnlyModules).Select(x => x.OnlyModuleName.ToLower()).SequenceEqual(UBTMakefile.Targets.SelectMany(x => x.OnlyModules).Select(x => x.OnlyModuleName.ToLower())))
+						if (UBTMakefile != null && !TargetDescs.SelectMany(x => x.OnlyModules)
+								.Select(x => new Tuple<string, bool>(x.OnlyModuleName.ToLower(), string.IsNullOrWhiteSpace(x.OnlyModuleSuffix)))
+								.SequenceEqual(
+									UBTMakefile.Targets.SelectMany(x => x.OnlyModules)
+									.Select(x => new Tuple<string, bool>(x.OnlyModuleName.ToLower(), string.IsNullOrWhiteSpace(x.OnlyModuleSuffix)))
+								)
+							)
 						{
 							UBTMakefile     = null;
 							ReasonNotLoaded = "modules to compile have changed";
@@ -2425,6 +2447,14 @@ namespace UnrealBuildTool
 				return null;
 			}
 
+			// Check to see if any BuildConfiguration files have changed since the last build
+			if (XmlConfigLoader.NewestXmlTimestamp > UBTMakefileInfo.LastWriteTime)
+			{
+				Log.TraceVerbose("Makefile is older than BuildConfiguration.xml, ignoring it" );
+				ReasonNotLoaded = "BuildConfiguration.xml is newer";
+				return null;
+			}
+
 			UBTMakefile LoadedUBTMakefile = null;
 
 			try
@@ -2690,6 +2720,12 @@ namespace UnrealBuildTool
 						// Remove "-####-Platform-Configuration" suffix in Debug configuration
 						var IndexOfSecondLastHyphen = OriginalFileNameWithoutExtension.LastIndexOf('-', IndexOfLastHyphen - 1, IndexOfLastHyphen);
 						var IndexOfThirdLastHyphen = OriginalFileNameWithoutExtension.LastIndexOf('-', IndexOfSecondLastHyphen - 1, IndexOfSecondLastHyphen);
+
+						if (!int.TryParse(OriginalFileNameWithoutExtension.Substring(IndexOfThirdLastHyphen + 1, IndexOfSecondLastHyphen - IndexOfThirdLastHyphen - 1), out NumberSuffix))
+						{
+							throw new BuildException("Expected produced item file name '{0}' to contain a numbered suffix when hot reloading second time.", OriginalFileNameWithoutExtension);
+						}
+
 						OriginalFileNameWithoutNumberSuffix = OriginalFileNameWithoutExtension.Substring(0, IndexOfThirdLastHyphen);
 						PlatformConfigSuffix = OriginalFileNameWithoutExtension.Substring(IndexOfSecondLastHyphen);
 					}

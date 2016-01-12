@@ -660,6 +660,11 @@ public:
 		return ArIgnoreOuterRef;
 	}
 
+	FORCEINLINE bool IsIgnoringClassGeneratedByRef() const
+	{
+		return ArIgnoreClassGeneratedByRef;
+	}
+
 	FORCEINLINE bool IsIgnoringClassRef() const
 	{
 		return ArIgnoreClassRef;
@@ -767,7 +772,7 @@ public:
 	 * @param Version - The version number to set key to
 	 * @param FriendlyName - Friendly name corresponding to the key
 	 */
-	void SetCustomVersion(const struct FGuid& Key, int32 Version, FString FriendlyName);
+	void SetCustomVersion(const struct FGuid& Key, int32 Version, FName FriendlyName);
 
 	/**
 	 * Toggle saving as Unicode. This is needed when we need to make sure ANSI strings are saved as Unicode
@@ -992,6 +997,9 @@ public:
 
 	/** If true, we will not serialize the Outer reference in UObject. */
 	bool ArIgnoreOuterRef;
+
+	/** If true, we will not serialize ClassGeneratedBy reference in UClass. */
+	bool ArIgnoreClassGeneratedByRef;
 	
 	/** If true, UObject::Serialize will skip serialization of the Class property. */
 	bool ArIgnoreClassRef;

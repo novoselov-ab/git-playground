@@ -229,6 +229,16 @@ namespace UnrealBuildTool
 						break;
 				}
 			}
+
+			// By default VS2015 doesn't install the C++ toolchain. Help developers out with a special message.
+			if (ProjectFileFormat == VCProjectFileFormat.VisualStudio2015)
+			{
+				string CompilerExe = Path.Combine(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2015), "../../VC/bin/cl.exe");
+				if (!File.Exists(CompilerExe))
+				{
+					Log.TraceInformation("Visual C++ 2015 toolchain does not appear to be correctly installed. Please verify that \"Common Tools for Visual C++ 2015\" was selected when installing Visual Studio 2015.");
+				}
+			}
 		}
 
 
@@ -252,18 +262,29 @@ namespace UnrealBuildTool
 					// Don't worry about platforms that we're missing SDKs for
 					if (BuildPlatform.HasRequiredSDKsInstalled() == SDKStatus.Valid)
 					{						
-						// Make sure Visual Studio 2013 project files will work...
-						if( ProjectFileFormat == VCProjectFileFormat.VisualStudio2013 )
+						// ...but only if the user didn't override this via the command-line.
+						if (!UnrealBuildTool.CommandLineContains("-2015") && !UnrealBuildTool.CommandLineContains("-2013") && !UnrealBuildTool.CommandLineContains("-2012"))
 						{
-							// ...but only if the user didn't override this via the command-line.
-							if( !UnrealBuildTool.CommandLineContains( "-2013" ) )
-							{ 
-								// Visual Studio 2013 is not supported by Xbox One debugger add-in yet
-								if( SupportedPlatform == UnrealTargetPlatform.XboxOne )
-								{
-									Log.TraceInformation( "Forcing Visual Studio 2012 projects for Xbox One compatibility (use '-2013' to override.)");
-									ProjectFileFormat = VCProjectFileFormat.VisualStudio2012;
-								}
+							VCProjectFileFormat ProposedFormat = ProjectFileFormat;
+
+							// Visual Studio 2015 is not supported by PS4 VSI
+							if( SupportedPlatform == UnrealTargetPlatform.PS4 )
+							{
+								Log.TraceInformation("Forcing Visual Studio max version to 2013 projects for PS4 compatibility (use '-2015' to override.)");
+								ProposedFormat = VCProjectFileFormat.VisualStudio2013;
+							}
+
+							// Visual Studio 2015 is not supported by the Android debugger we currently furnish
+							if (SupportedPlatform == UnrealTargetPlatform.Android)
+							{
+								Log.TraceInformation("Android debugging may not be available (requires Visual Studio max version of 2013, use '-2013' to override.)");
+//								ProposedFormat = VCProjectFileFormat.VisualStudio2013;
+							}
+
+							// Reduce the Visual Studio version to the max supported by each platform we plan to include.
+							if (ProposedFormat < ProjectFileFormat)
+							{
+								ProjectFileFormat = ProposedFormat;
 							}
 						}
 					}					
@@ -827,6 +848,11 @@ namespace UnrealBuildTool
 
 				// Check it doesn't exist before overwriting it. Since these files store the user's preferences, it'd be bad form to overwrite them.
 				string SolutionOptionsFileName = Path.Combine(MasterProjectRelativePath, Path.ChangeExtension(SolutionFileName, SolutionOptionsExtension));
+				if (ProjectFileFormat == VCProjectFileFormat.VisualStudio2015)
+				{
+					SolutionOptionsFileName = Path.Combine(MasterProjectRelativePath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v14", ".suo");
+					Directory.CreateDirectory(Path.Combine(MasterProjectRelativePath, ".vs", Path.GetFileNameWithoutExtension(SolutionFileName), "v14"));
+				}
 				if(!File.Exists(SolutionOptionsFileName))
 				{
 					VCSolutionOptions Options = new VCSolutionOptions();

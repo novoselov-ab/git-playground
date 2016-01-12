@@ -87,6 +87,25 @@ DEFINE_LOG_CATEGORY(LogSpawn);
 
 #define LOCTEXT_NAMESPACE "World"
 
+FActorSpawnParameters& FActorSpawnParameters::operator=(const FActorSpawnParameters& Other)
+{
+	Name = Other.Name;
+	Template = Other.Template;
+	Owner = Other.Owner;
+	Instigator = Other.Instigator;
+	OverrideLevel = Other.OverrideLevel;
+	SpawnCollisionHandlingOverride = Other.SpawnCollisionHandlingOverride;
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bNoCollisionFail = Other.bNoCollisionFail;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	bRemoteOwned = Other.bRemoteOwned;
+	bNoFail = Other.bNoFail;
+	bDeferConstruction = Other.bDeferConstruction;
+	bAllowDuringConstructionScript = Other.bAllowDuringConstructionScript;
+	ObjectFlags = Other.ObjectFlags;
+	return *this;
+}
+
 /*-----------------------------------------------------------------------------
 	UWorld implementation.
 -----------------------------------------------------------------------------*/
@@ -229,7 +248,7 @@ void UWorld::Serialize( FArchive& Ar )
 	}
 	
 	// UWorlds loaded/duplicated for PIE must lose RF_Public and RF_Standalone since they should not be referenced by objects in other packages and they should be GCed normally
-	if (GetOutermost()->PackageFlags & PKG_PlayInEditor)
+	if (GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 	{
 		ClearFlags(RF_Public|RF_Standalone);
 	}
@@ -353,7 +372,7 @@ bool UWorld::Rename(const TCHAR* InName, UObject* NewOuter, ERenameFlags Flags)
 		// If this is the last world removed from a package, clear the PKG_ContainsMap flag
 		if ( UWorld::FindWorldInPackage(OldPackage) == NULL )
 		{
-			OldPackage->PackageFlags &= ~PKG_ContainsMap;
+			OldPackage->ClearPackageFlags(PKG_ContainsMap);
 		}
 
 		// Set the PKG_ContainsMap flag in the new package
@@ -543,7 +562,7 @@ void UWorld::FinishDestroy()
 
 		if ( !bContainsAnotherWorld )
 		{
-			WorldPackage->PackageFlags &= ~PKG_ContainsMap;
+			WorldPackage->ClearPackageFlags(PKG_ContainsMap);
 		}
 	}
 
@@ -600,7 +619,7 @@ void UWorld::PostLoad()
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		if (!(GetOutermost()->PackageFlags & PKG_PlayInEditor))
+		if (!GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			// Needed for VER_UE4_WORLD_NAMED_AFTER_PACKAGE. If this file was manually renamed outside of the editor, this is needed anyway
 			const FString ShortPackageName = FPackageName::GetLongPackageAssetName(GetOutermost()->GetName());
@@ -812,6 +831,14 @@ void UWorld::RepairWorldSettings()
 			PersistentLevel->Actors[0]->Rename(NULL, PersistentLevel, REN_ForceNoResetLoaders);
 		}
 		
+		bool bClearOwningWorld = false;
+
+		if (PersistentLevel->OwningWorld == nullptr)
+		{
+			bClearOwningWorld = true;
+			PersistentLevel->OwningWorld = this;
+		}
+
 		FActorSpawnParameters SpawnInfo;
 		SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
 		SpawnInfo.Name = GEngine->WorldSettingsClass->GetFName();
@@ -837,6 +864,10 @@ void UWorld::RepairWorldSettings()
 		// Re-sort actor list as we just shuffled things around.
 		PersistentLevel->SortActorList();
 
+		if (bClearOwningWorld)
+		{
+			PersistentLevel->OwningWorld = nullptr;
+		}
 	}
 	check(GetWorldSettings());
 }
@@ -1117,7 +1148,7 @@ UWorld* UWorld::CreateWorld(const EWorldType::Type InWorldType, bool bInformEngi
 
 	if (InWorldType == EWorldType::PIE)
 	{
-		WorldPackage->PackageFlags |= PKG_PlayInEditor;
+		WorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	}
 
 	// Mark the package as containing a world.  This has to happen here rather than at serialization time,
@@ -2087,7 +2118,7 @@ void FLevelStreamingGCHelper::PrepareStreamedOutLevelsForGC()
 	{
 		ULevel*	Level = LevelsPendingUnload[LevelIndex].Get();
 
-		if( Level && (!GIsEditor || (Level->GetOutermost()->PackageFlags & PKG_PlayInEditor) ))
+		if( Level && (!GIsEditor || Level->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) ))
 		{
 			UPackage* LevelPackage = Cast<UPackage>(Level->GetOutermost());
 			UE_LOG(LogStreaming, Log, TEXT("PrepareStreamedOutLevelsForGC called on '%s'"), *LevelPackage->GetName() );
@@ -2264,7 +2295,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 	const FName PrefixedLevelFName = FName(*PrefixedLevelName);
 	UWorld::WorldTypePreLoadMap.FindOrAdd(PrefixedLevelFName) = EWorldType::PIE;
 	UPackage* PIELevelPackage = CastChecked<UPackage>(CreatePackage(NULL,*PrefixedLevelName));
-	PIELevelPackage->PackageFlags |= PKG_PlayInEditor;
+	PIELevelPackage->SetPackageFlags(PKG_PlayInEditor);
 #if WITH_EDITOR
 	PIELevelPackage->PIEInstanceID = WorldContext.PIEInstance;
 #endif
@@ -2272,6 +2303,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 
 	// Set up string asset reference fixups
 	TArray<FString> PackageNamesBeingDuplicatedForPIE;
+	PackageNamesBeingDuplicatedForPIE.Add(PrefixedLevelName);
 	if ( OwningWorld )
 	{
 		const FString PlayWorldMapName = ConvertToPIEPackageName(OwningWorld->GetOutermost()->GetName(), WorldContext.PIEInstance);
@@ -2283,7 +2315,7 @@ UWorld* UWorld::DuplicateWorldForPIE(const FString& PackageName, UWorld* OwningW
 			if (StreamingLevel)
 			{
 				const FString StreamingLevelPIEName = UWorld::ConvertToPIEPackageName(StreamingLevel->GetWorldAssetPackageName(), WorldContext.PIEInstance);
-				PackageNamesBeingDuplicatedForPIE.Add(StreamingLevelPIEName);
+				PackageNamesBeingDuplicatedForPIE.AddUnique(StreamingLevelPIEName);
 			}
 		}
 	}
@@ -3116,6 +3148,12 @@ void UWorld::CleanupWorld(bool bSessionEnded, bool bCleanupResources, UWorld* Ne
 	if (bCleanupResources && PersistentLevel)
 	{
 		PersistentLevel->ReleaseRenderingResources();
+
+		// Flush any render commands and released accessed UTextures and materials to give them a chance to be collected.
+		if ( FSlateApplication::IsInitialized() )
+		{
+			FSlateApplication::Get().FlushRenderState();
+		}
 	}
 
 	// Clear standalone flag when switching maps in the Editor. This causes resources placed in the map
@@ -4769,7 +4807,7 @@ UWorld* FSeamlessTravelHandler::Tick()
 			{
 				UPackage * WorldPackage = LoadedWorld->GetOutermost();
 				check(WorldPackage);
-				WorldPackage->PackageFlags |= PKG_PlayInEditor;
+				WorldPackage->SetPackageFlags(PKG_PlayInEditor);
 			}
 
 			// Clear any world specific state from NetDriver before switching World
@@ -4845,13 +4883,14 @@ UWorld* FSeamlessTravelHandler::Tick()
 			// Make sure "always loaded" sub-levels are fully loaded
 			LoadedWorld->FlushLevelStreaming(EFlushLevelStreamingType::Visibility);
 			
-			UNavigationSystem::InitializeForWorld(LoadedWorld, FNavigationSystemRunMode::GameMode);
-
 			// Note that AI system will be created only if ai-system-creation conditions are met
 			LoadedWorld->CreateAISystem();
 
 			// call initialize functions on everything that wasn't carried over from the old world
 			LoadedWorld->InitializeActorsForPlay(PendingTravelURL, false);
+
+			// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
+			UNavigationSystem::InitializeForWorld(LoadedWorld, FNavigationSystemRunMode::GameMode);
 
 			// send loading complete notifications for all local players
 			for (FLocalPlayerIterator It(GEngine, LoadedWorld); It; ++It)

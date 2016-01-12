@@ -230,7 +230,7 @@ void USoundWave::Serialize( FArchive& Ar )
 		}
 
 #if WITH_EDITORONLY_DATA	
-		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !(GetOutermost()->PackageFlags & PKG_ReloadingForCooker))
+		if (Ar.IsLoading() && !Ar.IsTransacting() && !bCooked && !GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
 		{
 			BeginCachePlatformData();
 		}
@@ -324,7 +324,7 @@ void USoundWave::PostLoad()
 {
 	Super::PostLoad();
 
-	if (GetOutermost()->PackageFlags & PKG_ReloadingForCooker)
+	if (GetOutermost()->HasAnyPackageFlags(PKG_ReloadingForCooker))
 	{
 		return;
 	}
@@ -524,13 +524,13 @@ FWaveInstance* USoundWave::HandleStart( FActiveSound& ActiveSound, const UPTRINT
 	// Add in the subtitle if they exist
 	if (ActiveSound.bHandleSubtitles && Subtitles.Num() > 0)
 	{
-		if (UAudioComponent* AudioComponent = ActiveSound.AudioComponent.Get())
+		if (UAudioComponent* AudioComponent = ActiveSound.GetAudioComponent())
 		{
 			// TODO - Audio Threading. This would need to be a call back to the main thread.
 			if (AudioComponent->OnQueueSubtitles.IsBound())
 			{
 				// intercept the subtitles if the delegate is set
-				ActiveSound.AudioComponent->OnQueueSubtitles.ExecuteIfBound( Subtitles, Duration );
+				AudioComponent->OnQueueSubtitles.ExecuteIfBound( Subtitles, Duration );
 			}
 			else if( ActiveSound.World.IsValid() )
 			{
@@ -587,7 +587,7 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 	{
 		WaveInstance->bIsFinished = false;
 #if !NO_LOGGING
-		if (!ActiveSound.bWarnedAboutOrphanedLooping && !ActiveSound.AudioComponent.IsValid())
+		if (!ActiveSound.bWarnedAboutOrphanedLooping && ActiveSound.GetAudioComponent() == nullptr)
 		{
 			UE_LOG(LogAudio, Warning, TEXT("Detected orphaned looping sound '%s'."), *ActiveSound.Sound->GetName());
 			ActiveSound.bWarnedAboutOrphanedLooping = true;
@@ -692,11 +692,11 @@ void USoundWave::Parse( FAudioDevice* AudioDevice, const UPTRINT NodeWaveInstanc
 					SoundWarningInfo += FString::Printf(TEXT(" SoundCue: %s"), *ActiveSound.Sound->GetName());
 				}
 
-				if (ActiveSound.AudioComponent.IsValid())
+				if (UAudioComponent* AudioComponent = ActiveSound.GetAudioComponent())
 				{
 					// TODO - Audio Threading. This log would have to be a task back to game thread
-					AActor* SoundOwner = ActiveSound.AudioComponent->GetOwner();
-					UE_LOG(LogAudio, Warning, TEXT( "%s Actor: %s AudioComponent: %s" ), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *ActiveSound.AudioComponent->GetName() );
+					AActor* SoundOwner = AudioComponent->GetOwner();
+					UE_LOG(LogAudio, Warning, TEXT( "%s Actor: %s AudioComponent: %s" ), *SoundWarningInfo, (SoundOwner ? *SoundOwner->GetName() : TEXT("None")), *AudioComponent->GetName() );
 				}
 				else
 				{

@@ -2,12 +2,15 @@
 
 #include "OculusFunctionLibraryPrivatePCH.h"
 #include "OculusFunctionLibrary.h"
-#include "HeadMountedDisplayCommon.h"
 
 #include "IOculusRiftPlugin.h"
 #include "IGearVRPlugin.h"
 
 #define OCULUS_SUPPORTED_PLATFORMS (OCULUS_RIFT_SUPPORTED_PLATFORMS || GEARVR_SUPPORTED_PLATFORMS)
+
+#if OCULUS_SUPPORTED_PLATFORMS
+	#include "HeadMountedDisplayCommon.h"
+#endif //OCULUS_SUPPORTED_PLATFORMS
 
 UOculusFunctionLibrary::UOculusFunctionLibrary(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)

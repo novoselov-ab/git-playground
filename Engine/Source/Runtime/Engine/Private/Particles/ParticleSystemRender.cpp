@@ -851,6 +851,7 @@ void GatherParticleLightData(const FDynamicSpriteEmitterReplayDataBase& Source, 
 				FVector LightPosition = Source.bUseLocalSpace ? FVector(InLocalToWorld.TransformPosition(ParticlePosition)) : ParticlePosition;
 				
 				// Calculate light positions per-view if we are using a camera offset.
+				/*	disabling camera offset on lights for now; it's not reliably working and does more harm than good
 				if (Source.CameraPayloadOffset != 0)
 				{
 					//Reserve mem for the indices into the per view data.
@@ -888,7 +889,7 @@ void GatherParticleLightData(const FDynamicSpriteEmitterReplayDataBase& Source, 
 						OutParticleLights.PerViewData.Add(PerViewData);
 					}
 				}
-				else
+				else*/
 				{
 					//Add index of this light into the per view data if needed.
 					if (OutParticleLights.InstancePerViewDataIndices.Num() != 0)
@@ -1110,6 +1111,10 @@ void FDynamicSpriteEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 
 				Mesh.bCanApplyViewModeOverrides = true;
 				Mesh.bUseWireframeSelectionColoring = Proxy->IsSelected();
+			
+			#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				Mesh.VisualizeLODIndex = (int8)Proxy->GetVisualizeLODIndex();
+			#endif
 
 				Collector.AddMesh(ViewIndex, Mesh);
 			}
@@ -1562,6 +1567,10 @@ void FDynamicMeshEmitterData::GetDynamicMeshElementsEmitter(const FParticleSyste
 
 					Mesh.bCanApplyViewModeOverrides = true;
 					Mesh.bUseWireframeSelectionColoring = Proxy->IsSelected();
+			
+				#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+					Mesh.VisualizeLODIndex = (int8)Proxy->GetVisualizeLODIndex();
+				#endif
 
 					Collector.AddMesh(ViewIndex, Mesh);
 				}
@@ -2344,6 +2353,10 @@ void FDynamicBeam2EmitterData::GetDynamicMeshElementsEmitter(const FParticleSyst
 
 		Mesh.bCanApplyViewModeOverrides = true;
 		Mesh.bUseWireframeSelectionColoring = Proxy->IsSelected();
+		
+	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		Mesh.VisualizeLODIndex = (int8)Proxy->GetVisualizeLODIndex();
+	#endif
 
 		Collector.AddMesh(ViewIndex, Mesh);
 
@@ -5067,6 +5080,10 @@ void FDynamicTrailsEmitterData::GetDynamicMeshElementsEmitter(const FParticleSys
 
 		Mesh.bCanApplyViewModeOverrides = true;
 		Mesh.bUseWireframeSelectionColoring = Proxy->IsSelected();
+		
+	#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		Mesh.VisualizeLODIndex = (int8)Proxy->GetVisualizeLODIndex();
+	#endif
 
 		Collector.AddMesh(ViewIndex, Mesh);
 
@@ -6301,6 +6318,7 @@ FParticleSystemSceneProxy::FParticleSystemSceneProxy(const UParticleSystemCompon
 		GetSelectionColor(FLinearColor(1.0f, 0.0f, 0.0f, 1.0f),false,false)
 		)
 	, PendingLODDistance(0.0f)
+	, VisualizeLODIndex(Component->GetCurrentLODIndex())
 	, LastFramePreRendered(-1)
 	, FirstFreeMeshBatch(0)
 {
@@ -6472,8 +6490,6 @@ void FParticleSystemSceneProxy::UpdateData_RenderThread(FParticleDynamicData* Ne
 
 void FParticleSystemSceneProxy::DetermineLODDistance(const FSceneView* View, int32 FrameNumber)
 {
-	int32	LODIndex = -1;
-
 	if (LODMethod == PARTICLESYSTEMLODMETHOD_Automatic)
 	{
 		// Default to the highest LOD level

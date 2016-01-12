@@ -18,13 +18,14 @@
 #include "Engine/RendererSettings.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "GeneralProjectSettings.h"
-#include "AVIWriter.h"
 
 #include "SlateBasics.h"
 #include "Slate/SceneViewport.h"
 #include "SVirtualJoystick.h"
 
-#include "AVIWriter.h"
+#include "MovieSceneCaptureModule.h"
+#include "MovieSceneCaptureSettings.h"
+
 #include "AssetRegistryModule.h"
 #include "SynthBenchmark.h"
 
@@ -90,7 +91,7 @@ UGameEngine::UGameEngine(const FObjectInitializer& ObjectInitializer)
 
 void UGameEngine::CreateGameViewportWidget( UGameViewportClient* GameViewportClient )
 {
-	bool bRenderDirectlyToWindow = !GEngine->MatineeScreenshotOptions.bStartWithMatineeCapture && GIsDumpingMovie == 0; 
+	bool bRenderDirectlyToWindow = !StartupMovieCaptureHandle.IsValid() && GIsDumpingMovie == 0; 
 	const bool bStereoAllowed = bRenderDirectlyToWindow;
 	TSharedRef<SOverlay> ViewportOverlayWidgetRef = SNew( SOverlay );
 
@@ -201,8 +202,8 @@ void UGameEngine::ConditionallyOverrideSettings(int32& ResolutionX, int32& Resol
 
 	if (!IsRunningDedicatedServer() && ((ResolutionX <= 0) || (ResolutionY <= 0)))
 	{
-		// consume available desktop area
-		FDisplayMetrics DisplayMetrics;
+	// consume available desktop area
+	FDisplayMetrics DisplayMetrics;
 		FDisplayMetrics::GetDisplayMetrics( DisplayMetrics );
 		
 		ResolutionX = DisplayMetrics.PrimaryDisplayWidth;
@@ -343,6 +344,12 @@ void UGameEngine::SwitchGameWindowToUseGameViewport()
 		
 		SceneViewport->ResizeFrame((uint32)GSystemResolution.ResX, (uint32)GSystemResolution.ResY, GSystemResolution.WindowMode, 0, 0);
 
+		IMovieSceneCaptureInterface* MovieSceneCaptureImpl = StartupMovieCaptureHandle.IsValid() ? IMovieSceneCaptureModule::Get().RetrieveMovieSceneInterface(StartupMovieCaptureHandle) : nullptr;
+		if (MovieSceneCaptureImpl)
+		{
+			MovieSceneCaptureImpl->Initialize(SceneViewport.Get());
+		}
+
 		// Move the registration of the game viewport to that messages are correctly received.
 		if (!FPlatformProperties::SupportsWindowedMode())
 		{
@@ -410,7 +417,7 @@ UEngine::UEngine(const FObjectInitializer& ObjectInitializer)
 
 	bUseSound = true;
 
-	bHardwareSurveyEnabled = true;
+	bHardwareSurveyEnabled_DEPRECATED = true;
 	bPendingHardwareSurveyResults = false;
 	bIsInitialized = false;
 
@@ -458,6 +465,19 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 //  	// Creates the initial world context. For GameEngine, this should be the only WorldContext that ever gets created.
 //  	FWorldContext& InitialWorldContext = CreateNewWorldContext(EWorldType::Game);
 
+	IMovieSceneCaptureInterface* MovieSceneCaptureImpl = nullptr;
+#if WITH_EDITOR
+	if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
+	{
+		MovieSceneCaptureImpl = IMovieSceneCaptureModule::Get().InitializeFromCommandLine();
+		if (MovieSceneCaptureImpl)
+		{
+			StartupMovieCaptureHandle = MovieSceneCaptureImpl->GetHandle();
+			GameInstance->InitialMapOverride = MovieSceneCaptureImpl->GetPackageName();
+		}
+	}
+#endif
+
 	// Initialize the viewport client.
 	UGameViewportClient* ViewportClient = NULL;
 	if(GIsClient)
@@ -468,7 +488,6 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 		GameInstance->GetWorldContext()->GameViewport = ViewportClient;
 	}
 
-	bCheckForMovieCapture = true;
 	LastTimeLogsFlushed = FPlatformTime::Seconds();
 
 	// Attach the viewport client to a new viewport.
@@ -509,12 +528,6 @@ void UGameEngine::Init(IEngineLoop* InEngineLoop)
 
 void UGameEngine::PreExit()
 {
-	FAVIWriter* AVIWriter = FAVIWriter::GetInstance();
-	if (AVIWriter)
-	{
-		AVIWriter->Close();
-	}
-
 	Super::PreExit();
 
 	// Stop tracking, automatically flushes.
@@ -940,36 +953,36 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 		}
 
 		// Tick the viewports.
-		if ( GameViewport != NULL && !bIdleMode )
-		{
-			SCOPE_CYCLE_COUNTER(STAT_GameViewportTick);
-			GameViewport->Tick(DeltaSeconds);
-		}
+	if ( GameViewport != NULL && !bIdleMode )
+	{
+		SCOPE_CYCLE_COUNTER(STAT_GameViewportTick);
+		GameViewport->Tick(DeltaSeconds);
+	}
 	
 		UpdateTransitionType(Context.World());
 	
 		// fixme: this will only happen once due to the static bool, but still need to figure out how to handle this for multiple worlds
-		if (FPlatformProperties::SupportsWindowedMode())
+	if (FPlatformProperties::SupportsWindowedMode())
+	{
+		// Hide the splashscreen and show the game window
+		static bool bFirstTime = true;
+		if ( bFirstTime )
 		{
-			// Hide the splashscreen and show the game window
-			static bool bFirstTime = true;
-			if ( bFirstTime )
+			bFirstTime = false;
+			FPlatformSplash::Hide();
+			if ( GameViewportWindow.IsValid() )
 			{
-				bFirstTime = false;
-				FPlatformSplash::Hide();
-				if ( GameViewportWindow.IsValid() )
-				{
-					GameViewportWindow.Pin()->ShowWindow();
-					FSlateApplication::Get().RegisterGameViewport( GameViewportWidget.ToSharedRef() );
-				}
+				GameViewportWindow.Pin()->ShowWindow();
+				FSlateApplication::Get().RegisterGameViewport( GameViewportWidget.ToSharedRef() );
 			}
 		}
+	}
 
-		if (!bIdleMode && !IsRunningDedicatedServer() && !IsRunningCommandlet())
-		{
-			// Render everything.
-			RedrawViewports();
-		}
+	if (!bIdleMode && !IsRunningDedicatedServer() && !IsRunningCommandlet())
+	{
+		// Render everything.
+		RedrawViewports();
+	}
 
 		// Block on async loading if requested.
 		if (Context.World()->bRequestedBlockOnAsyncLoading)
@@ -991,16 +1004,16 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			AudioDevice->Update(!Context.World()->IsPaused());
 		}
 
-		if( GIsClient )
-		{
+	if( GIsClient )
+	{
 			// IStreamingManager is updated outside of a world context. For now, assuming it needs to tick here, before possibly calling PostLoadMap. 
 			// Will need to take another look when trying to support multiple worlds.
 
-			// Update resource streaming after viewports have had a chance to update view information. Normal update.
+		// Update resource streaming after viewports have had a chance to update view information. Normal update.
 			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_UGameEngine_Tick_IStreamingManager);
-				IStreamingManager::Get().Tick( DeltaSeconds );
-			}
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_UGameEngine_Tick_IStreamingManager);
+		IStreamingManager::Get().Tick( DeltaSeconds );
+	}
 
 			if ( Context.World()->bTriggerPostLoadMap )
 			{
@@ -1046,28 +1059,6 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 			GetRendererModule().TickRenderTargetPool();
 		});
-	}
-	
-	// Skip AVI work in environments where there is no rendering
-	if (!IsRunningDedicatedServer() && !IsRunningCommandlet())
-	{
-		FAVIWriter* AVIWriter = FAVIWriter::GetInstance();
-		if (AVIWriter)
-		{
-			QUICK_SCOPE_CYCLE_COUNTER(STAT_UGameEngine_Tick_AVIWriter);
-			AVIWriter->Update(DeltaSeconds);
-		}
-
-		// Start the movie capture if needed
-		if (bCheckForMovieCapture && GEngine->MatineeScreenshotOptions.bStartWithMatineeCapture && GEngine->MatineeScreenshotOptions.MatineeCaptureType == EMatineeCaptureType::AVI && GameViewport->Viewport->GetSizeXY() != FIntPoint::ZeroValue )
-		{
-			if (AVIWriter)
-			{
-				QUICK_SCOPE_CYCLE_COUNTER(STAT_UGameEngine_Tick_StartCapture);
-				AVIWriter->StartCapture(GameViewport->Viewport);
-			}
-			bCheckForMovieCapture = false;
-		}
 	}
 }
 

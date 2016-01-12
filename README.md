@@ -46,9 +46,9 @@ The steps below will take you through cloning your own private fork, then compil
    If you'd prefer not to use Git, you can get the source with the 'Download ZIP' button on the right. The built-in Windows zip utility will mark the contents of zip files 
    downloaded from the Internet as unsafe to execute, so right-click the zip file and select 'Properties...' and 'Unblock' before decompressing it. Third-party zip utilities don't normally do this.
 
-1. Install **Visual Studio 2013**. 
-   All desktop editions of Visual Studio 2013 can build UE4, including [Visual Studio Community 2013](http://www.visualstudio.com/products/visual-studio-community-vs), which is available for free.
-   Be sure to include the MFC libraries as part of the install (it's included by default), which we need for ATL support.
+1. Install **Visual Studio 2015**. 
+   All desktop editions of Visual Studio 2015 can build UE4, including [Visual Studio Community 2015](http://www.visualstudio.com/products/visual-studio-community-vs), which is free for small teams and individual developers.
+   Be sure to include C++ support as part of the install, which is disabled by default.
   
 1. Open your source folder in Explorer and run **Setup.bat**. 
    This will download binary content for the engine, as well as installing prerequisites and setting up Unreal file associations. 
@@ -82,7 +82,7 @@ The steps below will take you through cloning your own private fork, then compil
 
 1. In the same folder, double-click **GenerateProjectFiles.command**.  It should take less than a minute to complete.  
 
-1. Load the project into Xcode by double-clicking on the **UE4.xcodeproj** file. Select the **UE4Editor - Mac** for **My Mac** target in the title bar,
+1. Load the project into Xcode by double-clicking on the **UE4.xcworkspace** file. Select the **UE4** for **My Mac** target in the title bar,
    then select the 'Product > Build' menu item. Compiling may take anywhere between 15 and 40 minutes, depending on your system specs.
    
 1. After compiling finishes, select the 'Product > Run' menu item to load the editor.

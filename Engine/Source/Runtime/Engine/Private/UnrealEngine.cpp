@@ -105,9 +105,11 @@
 #include "JsonInternationalizationArchiveSerializer.h"
 #include "JsonInternationalizationManifestSerializer.h"
 
+#include "MovieSceneCaptureModule.h"
 #include "GameFramework/OnlineSession.h"
 
 #include "InstancedReferenceSubobjectHelper.h"
+#include "Engine/EndUserSettings.h"
 
 DEFINE_LOG_CATEGORY(LogEngine);
 
@@ -277,7 +279,7 @@ void ScalabilityCVarsSinkCallback()
 
 	{
 		static const auto MaterialQualityLevelVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.MaterialQualityLevel"));
-		LocalScalabilityCVars.MaterialQualityLevel = (EMaterialQualityLevel::Type)FMath::Clamp(MaterialQualityLevelVar->GetValueOnGameThread(), 0, 1);
+		LocalScalabilityCVars.MaterialQualityLevel = (EMaterialQualityLevel::Type)FMath::Clamp(MaterialQualityLevelVar->GetValueOnGameThread(), 0, (int32)EMaterialQualityLevel::Num - 1);
 	}
 
 	{
@@ -889,14 +891,6 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	// Connect the engine analytics provider
 	FEngineAnalytics::Initialize();
 
-#if WITH_EDITOR
-	// register screenshot capture if we are dumping a movie
-	if(GIsDumpingMovie)
-	{
-		HandleScreenshotCapturedDelegateHandle = UGameViewportClient::OnScreenshotCaptured().AddUObject(this, &UEngine::HandleScreenshotCaptured);
-	}
-#endif
-
 	//Load the streaming pause rendering module.
 	FModuleManager::LoadModulePtr<IModuleInterface>(TEXT("StreamingPauseRendering"));
 
@@ -978,10 +972,6 @@ void UEngine::PreExit()
 	ShutdownRenderingCVarsCaching();
 	FEngineAnalytics::Shutdown();
 
-#if WITH_EDITOR
-	UGameViewportClient::OnScreenshotCaptured().Remove(HandleScreenshotCapturedDelegateHandle);
-#endif
-
 	if (ScreenSaverInhibitor)
 	{
 		// Resume the thread to avoid a deadlock while waiting for finish.
@@ -995,10 +985,16 @@ void UEngine::PreExit()
 	{
 		auto SavedStereo = StereoRenderingDevice;
 		auto SavedHMD = HMDDevice;
+		auto SavedViewExtentions = ViewExtensions;
 		{
 			FSuspendRenderingThread Suspend(false);
 			StereoRenderingDevice.Reset();
 			HMDDevice.Reset();
+			for (auto& ViewExt : ViewExtensions)
+			{
+				ViewExt.Reset();
+			}
+			ViewExtensions.Empty();
 		}
 		// shutdown will occur here.
 	}
@@ -1530,66 +1526,6 @@ void UEngine::ParseCommandline()
 	{
 		bDisableAILogging = false;
 	}
-
-	MatineeScreenshotOptions.bStartWithMatineeCapture = false;
-	MatineeScreenshotOptions.bCompressMatineeCapture = false;
-#if WITH_EDITOR
-	if (!GIsEditor && FParse::Value(FCommandLine::Get(), TEXT("-MATINEEAVICAPTURE="), MatineeScreenshotOptions.MatineeCaptureName))
-	{
-		MatineeScreenshotOptions.MatineeCaptureType = EMatineeCaptureType::AVI;
-		MatineeScreenshotOptions.bStartWithMatineeCapture = true;
-	}
-	else if (!GIsEditor && FParse::Value(FCommandLine::Get(), TEXT("-MATINEESSCAPTURE="), MatineeScreenshotOptions.MatineeCaptureName))
-	{
-		MatineeScreenshotOptions.MatineeCaptureType = EMatineeCaptureType::BMP;
-
-		FString MatineeCaptureFormat;
-		if(FParse::Value(FCommandLine::Get(), TEXT("-MATINEESSFORMAT="), MatineeCaptureFormat))
-		{
-			if(MatineeCaptureFormat == TEXT("BMP"))
-			{
-				MatineeScreenshotOptions.MatineeCaptureType = EMatineeCaptureType::BMP;
-			}
-			else if(MatineeCaptureFormat == TEXT("PNG"))
-			{
-				MatineeScreenshotOptions.MatineeCaptureType = EMatineeCaptureType::PNG;
-			}
-			else if(MatineeCaptureFormat == TEXT("JPEG"))
-			{
-				MatineeScreenshotOptions.MatineeCaptureType = EMatineeCaptureType::JPEG;
-			}
-		}
-
-		MatineeScreenshotOptions.bStartWithMatineeCapture = true;
-	}
-
-	if( !GIsEditor && MatineeScreenshotOptions.bStartWithMatineeCapture )
-	{
-		GConfig->GetBool( TEXT("MatineeCreateMovieOptions"), TEXT("HideHUD"), MatineeScreenshotOptions.bHideHud, GEditorPerProjectIni );
-	}
-
-	// If we are capturing a matinee movie and we want to dump the buffer visualization shots too, for on all required functionality
-	if (!GIsEditor && FParse::Param(FCommandLine::Get(), TEXT("MATINEEBUFFERVISUALIZATIONDUMP")))
-	{
-		static IConsoleVariable* CVarDumpFrames = IConsoleManager::Get().FindConsoleVariable(TEXT("r.BufferVisualizationDumpFrames"));
-	
-		if (CVarDumpFrames)
-		{
-			CVarDumpFrames->Set(1, ECVF_SetByCommandline);
-		}
-	}
-
-	if (MatineeScreenshotOptions.bStartWithMatineeCapture)
-	{
-		FParse::Value(FCommandLine::Get(), TEXT("-MATINEEPACKAGE="), MatineeScreenshotOptions.MatineePackageCaptureName);
-	}
-
-	if ( !GIsEditor && FParse::Param(FCommandLine::Get(), TEXT("COMPRESSCAPTURE")) )
-	{
-		MatineeScreenshotOptions.bCompressMatineeCapture = true;
-	}
-#endif
-	MatineeScreenshotOptions.MatineeCaptureFPS = 30;
 }
 
 
@@ -1650,18 +1586,18 @@ void UEngine::InitializeObjectReferences()
 	if (AllowDebugViewmodes())
 	{
 		// Materials that are needed in-game if debug viewmodes are allowed
-		LoadSpecialMaterial(WireframeMaterialName.ToString(), WireframeMaterial, true);
-		LoadSpecialMaterial(LevelColorationLitMaterialName.ToString(), LevelColorationLitMaterial, true);
-		LoadSpecialMaterial(LevelColorationUnlitMaterialName.ToString(), LevelColorationUnlitMaterial, true);
-		LoadSpecialMaterial(LightingTexelDensityName.ToString(), LightingTexelDensityMaterial, false);
-		LoadSpecialMaterial(ShadedLevelColorationLitMaterialName.ToString(), ShadedLevelColorationLitMaterial, true);
-		LoadSpecialMaterial(ShadedLevelColorationUnlitMaterialName.ToString(), ShadedLevelColorationUnlitMaterial, true);
-		LoadSpecialMaterial(VertexColorMaterialName.ToString(), VertexColorMaterial, false);
-		LoadSpecialMaterial(VertexColorViewModeMaterialName_ColorOnly.ToString(), VertexColorViewModeMaterial_ColorOnly, false);
-		LoadSpecialMaterial(VertexColorViewModeMaterialName_AlphaAsColor.ToString(), VertexColorViewModeMaterial_AlphaAsColor, false);
-		LoadSpecialMaterial(VertexColorViewModeMaterialName_RedOnly.ToString(), VertexColorViewModeMaterial_RedOnly, false);
-		LoadSpecialMaterial(VertexColorViewModeMaterialName_GreenOnly.ToString(), VertexColorViewModeMaterial_GreenOnly, false);
-		LoadSpecialMaterial(VertexColorViewModeMaterialName_BlueOnly.ToString(), VertexColorViewModeMaterial_BlueOnly, false);
+		LoadSpecialMaterial(WireframeMaterialName, WireframeMaterial, true);
+		LoadSpecialMaterial(LevelColorationLitMaterialName, LevelColorationLitMaterial, true);
+		LoadSpecialMaterial(LevelColorationUnlitMaterialName, LevelColorationUnlitMaterial, true);
+		LoadSpecialMaterial(LightingTexelDensityName, LightingTexelDensityMaterial, false);
+		LoadSpecialMaterial(ShadedLevelColorationLitMaterialName, ShadedLevelColorationLitMaterial, true);
+		LoadSpecialMaterial(ShadedLevelColorationUnlitMaterialName, ShadedLevelColorationUnlitMaterial, true);
+		LoadSpecialMaterial(VertexColorMaterialName, VertexColorMaterial, false);
+		LoadSpecialMaterial(VertexColorViewModeMaterialName_ColorOnly, VertexColorViewModeMaterial_ColorOnly, false);
+		LoadSpecialMaterial(VertexColorViewModeMaterialName_AlphaAsColor, VertexColorViewModeMaterial_AlphaAsColor, false);
+		LoadSpecialMaterial(VertexColorViewModeMaterialName_RedOnly, VertexColorViewModeMaterial_RedOnly, false);
+		LoadSpecialMaterial(VertexColorViewModeMaterialName_GreenOnly, VertexColorViewModeMaterial_GreenOnly, false);
+		LoadSpecialMaterial(VertexColorViewModeMaterialName_BlueOnly, VertexColorViewModeMaterial_BlueOnly, false);
 	}
 
 	// Materials that may or may not be needed when debug viewmodes are disabled but haven't been fixed up yet
@@ -2048,10 +1984,10 @@ bool UEngine::InitializeAudioDeviceManager()
 					FAudioDevice* NewAudioDevice = AudioDeviceManager->CreateAudioDevice(MainAudioDeviceHandle, true);
 					if (NewAudioDevice)
 					{
-						AudioDeviceManager->SetActiveDevice(MainAudioDeviceHandle);
-					}
-					else
-					{
+							AudioDeviceManager->SetActiveDevice(MainAudioDeviceHandle);
+						}
+						else
+						{
 						ShutdownAudioDeviceManager();
 					}
 				}
@@ -2629,11 +2565,11 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	{
 		return HandleStatCommand(InWorld, GStatProcessingViewportClient, Cmd, Ar);
 	}
-	else if( FParse::Command(&Cmd,TEXT("STARTMOVIECAPTURE")) && (GEngine->MatineeScreenshotOptions.bStartWithMatineeCapture == true || GIsEditor) )
+	else if( FParse::Command(&Cmd,TEXT("STARTMOVIECAPTURE")) && GIsEditor )
 	{
 		return HandleStartMovieCaptureCommand( Cmd, Ar );
 	}
-	else if( FParse::Command(&Cmd,TEXT("STOPMOVIECAPTURE")) && (GEngine->MatineeScreenshotOptions.bStartWithMatineeCapture == true || GIsEditor) )
+	else if( FParse::Command(&Cmd,TEXT("STOPMOVIECAPTURE")) && GIsEditor )
 	{
 		return HandleStopMovieCaptureCommand( Cmd, Ar );
 	}
@@ -2966,23 +2902,27 @@ bool UEngine::Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 	return true;
 }
 
+FMovieSceneCaptureHandle GMovieCaptureHandle;
 bool UEngine::HandleStartMovieCaptureCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
-	FAVIWriter* AVIWriter = FAVIWriter::GetInstance();
-	if (AVIWriter && !AVIWriter->IsCapturing())
+	if (!GMovieCaptureHandle.IsValid())
 	{
-		AVIWriter->StartCapture();
-		return true;
+		IMovieSceneCaptureInterface* CaptureInterface = IMovieSceneCaptureModule::Get().CreateMovieSceneCapture(GameViewport->Viewport);
+		if (CaptureInterface)
+		{
+			GMovieCaptureHandle = CaptureInterface->GetHandle();
+			return true;
+		}
 	}
 	return false;
 }
 
 bool UEngine::HandleStopMovieCaptureCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 {
-	FAVIWriter* AVIWriter = FAVIWriter::GetInstance();
-	if (AVIWriter && AVIWriter->IsCapturing() && !AVIWriter->IsCapturingSlateRenderer())
+	if (GMovieCaptureHandle.IsValid())
 	{
-		AVIWriter->StopCapture();
+		IMovieSceneCaptureModule::Get().DestroyMovieSceneCapture(GMovieCaptureHandle);
+		GMovieCaptureHandle = FMovieSceneCaptureHandle();
 		return true;
 	}
 	return false;
@@ -5307,8 +5247,8 @@ bool UEngine::HandleObjCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		Ar.Log( TEXT("Objects:") );
 		Ar.Log( TEXT("") );
 
-		UClass*   CheckType     = NULL;
-		UClass*   MetaClass		= NULL;
+		UClass* CheckType = NULL;
+		UClass* MetaClass = NULL;
 		const bool bExportToFile = FParse::Param(Cmd,TEXT("FILE"));
 
 		// allow checking for any Outer, not just a UPackage
@@ -6126,24 +6066,10 @@ void UEngine::OnLostFocusPause(bool EnablePause)
 
 void UEngine::InitHardwareSurvey()
 {
-	bool bEnabled = true;
-#if !WITH_EDITORONLY_DATA
-	bEnabled = bHardwareSurveyEnabled;
-#endif
-
 	// The hardware survey costs time and we don't want to slow down debug builds.
 	// This is mostly because of the CPU benchmark running in the survey and the results in debug are not being valid.
-#if UE_BUILD_DEBUG
-	bEnabled = false;
-#endif
-
-	if (bEnabled)
-	{
-		if (IsHardwareSurveyRequired())
-		{
-			bPendingHardwareSurveyResults = true;
-		}
-	}	
+	// Never run the survey in games, only in the editor.
+	bPendingHardwareSurveyResults = WITH_EDITOR && GIsEditor && !IsRunningCommandlet() && FEngineAnalytics::IsAvailable() && IsHardwareSurveyRequired();
 }
 
 void UEngine::TickHardwareSurvey()
@@ -6487,23 +6413,23 @@ void UEngine::UpdateRunningAverageDeltaTime(float DeltaTime, bool bAllowFrameRat
 	{
 		// Smooth the framerate if wanted. The code uses a simplistic running average. Other approaches, like reserving
 		// a percentage of time, ended up creating negative feedback loops in conjunction with GPU load and were abandonend.
-		if( DeltaTime < 0.0f )
-		{
+			if( DeltaTime < 0.0f )
+			{
 #if PLATFORM_ANDROID
-			UE_LOG(LogEngine, Warning, TEXT("Detected negative delta time - ignoring"));
-			DeltaTime = 0.01;
+				UE_LOG(LogEngine, Warning, TEXT("Detected negative delta time - ignoring"));
+				DeltaTime = 0.01;
 #elif (UE_BUILD_SHIPPING && WITH_EDITOR)
-			// End users don't have access to the secure parts of UDN. The localized string points to the release notes,
-			// which should include a link to the AMD CPU drivers download site.
-			UE_LOG(LogEngine, Fatal, TEXT("%s"), TEXT("CPU time drift detected! Please consult release notes on how to address this."));
+				// End users don't have access to the secure parts of UDN. The localized string points to the release notes,
+				// which should include a link to the AMD CPU drivers download site.
+				UE_LOG(LogEngine, Fatal, TEXT("%s"), TEXT("CPU time drift detected! Please consult release notes on how to address this."));
 #else
-			// Send developers to the support list thread.
-			UE_LOG(LogEngine, Fatal, TEXT("Negative delta time! Please see https://udn.epicgames.com/lists/showpost.php?list=ue3bugs&id=4364"));
+				// Send developers to the support list thread.
+				UE_LOG(LogEngine, Fatal, TEXT("Negative delta time! Please see https://udn.epicgames.com/lists/showpost.php?list=ue3bugs&id=4364"));
 #endif
-		}
+			}
 
-		// Keep track of running average over 300 frames, clamping at min of 5 FPS for individual delta times.
-		RunningAverageDeltaTime = FMath::Lerp<float>( RunningAverageDeltaTime, FMath::Min<float>( DeltaTime, 0.2f ), 1 / 300.f );
+			// Keep track of running average over 300 frames, clamping at min of 5 FPS for individual delta times.
+			RunningAverageDeltaTime = FMath::Lerp<float>( RunningAverageDeltaTime, FMath::Min<float>( DeltaTime, 0.2f ), 1 / 300.f );
 	}
 }
 
@@ -7326,6 +7252,20 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 				MessageY += 20;
 			}
 			
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+			if (FPlatformProperties::SupportsTextureStreaming() && IStreamingManager::Get().IsTextureStreamingEnabled())
+			{
+				auto MemOver = IStreamingManager::Get().GetTextureStreamingManager().GetMemoryOverBudget();
+				if (MemOver > 0)
+				{
+					SmallTextItem.SetColor(FLinearColor::Red);
+					SmallTextItem.Text = FText::FromString(FString::Printf(TEXT("TEXTURE STREAMING POOL OVER %0.2f MB"), (float)MemOver / 1024.0f / 1024.0f));
+					Canvas->DrawItem(SmallTextItem, FVector2D(MessageX, MessageY));
+					MessageY += 20;
+				}
+			}
+#endif
+
 			// check navmesh
 #if WITH_EDITOR
 			const bool bIsNavigationAutoUpdateEnabled = UNavigationSystem::GetIsNavigationAutoUpdateEnabled();
@@ -7549,19 +7489,19 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 		for (const FDebugClass& DebugClass : DebugClasses)
 		{
 			if (DebugClass.Class)
-			{
+		{
 				TArray<UObject*> DebugObjectsOfClass;
 				const bool bIncludeDerivedClasses = true;
 				GetObjectsOfClass(DebugClass.Class, DebugObjectsOfClass, bIncludeDerivedClasses);
 				for (UObject* Obj : DebugObjectsOfClass)
-				{
+			{
 					if (!Obj)
-					{
-						continue;
-					}
+				{
+					continue;
+				}
 
 					if (Obj->GetWorld() && Obj->GetWorld() != World)
-					{
+				{
 						continue;
 					}
 
@@ -9382,30 +9322,8 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		}
 	}
 
-	UPackage* MapOuter = NULL;
-
-	// in the seekfree case (which hasn't already loaded anything), get linkers for any downloaded packages here,
-	// so that any dependent packages will correctly find them as they will not search the cache by default
-	if (Pending && Pending->NetDriver && Pending->NetDriver->ServerConnection)
-	{
-		// make the package, and use this for the new linker (and to load the map from)
-		MapOuter = CreatePackage(NULL, *Pending->URL.Map);
-#if WITH_EDITOR
-		if (WorldContext.WorldType == EWorldType::PIE)
-		{
-			MapOuter->PackageFlags |= PKG_PlayInEditor;
-		}
-		MapOuter->PIEInstanceID = WorldContext.PIEInstance;
-#endif
-		// create the linker with the map name, and use the Guid so we find the downloaded version
-		BeginLoad();
-		GetPackageLinker(MapOuter, NULL, LOAD_NoWarn | LOAD_NoVerify | LOAD_Quiet, NULL, NULL);
-		EndLoad();
-	}
-
 	UPackage* WorldPackage = NULL;
 	UWorld*	NewWorld = NULL;
-
 	
 	// Is this a PIE networking thing?
 	if (!WorldContext.PIERemapPrefix.IsEmpty())
@@ -9433,7 +9351,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 				auto NewPackage = CreatePackage(NULL, *PIEPackageName);
 				if (NewPackage != nullptr && WorldContext.WorldType == EWorldType::PIE)
 				{
-					NewPackage->PackageFlags |= PKG_PlayInEditor;
+					NewPackage->SetPackageFlags(PKG_PlayInEditor);
 					LoadFlags |= LOAD_PackageForPIE;
 				}
 				WorldPackage = LoadPackage(NewPackage, *SourceWorldPackage, LoadFlags);
@@ -9489,12 +9407,12 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		UWorld::WorldTypePreLoadMap.FindOrAdd( URLMapFName ) = WorldContext.WorldType;
 
 		// See if the level is already in memory
-		WorldPackage = FindPackage(MapOuter, *URL.Map);
+		WorldPackage = FindPackage(nullptr, *URL.Map);
 
 		// If the level isn't already in memory, load level from disk
 		if (WorldPackage == NULL)
 		{
-			WorldPackage = LoadPackage(MapOuter, *URL.Map, (WorldContext.WorldType == EWorldType::PIE ? LOAD_PackageForPIE : LOAD_None));
+			WorldPackage = LoadPackage(nullptr, *URL.Map, (WorldContext.WorldType == EWorldType::PIE ? LOAD_PackageForPIE : LOAD_None));
 		}
 
 		// Clean up the world type list now that PostLoad has occurred
@@ -9523,7 +9441,7 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 
 		FScopeCycleCounterUObject MapScope(WorldPackage);
 
-		if (FPlatformProperties::RequiresCookedData() && GUseSeekFreeLoading && !(WorldPackage->PackageFlags & PKG_DisallowLazyLoading))
+		if (FPlatformProperties::RequiresCookedData() && GUseSeekFreeLoading && !WorldPackage->HasAnyPackageFlags(PKG_DisallowLazyLoading))
 		{
 			UE_LOG(LogLoad, Fatal, TEXT("Map '%s' has not been cooked correctly! Most likely stale version on the XDK."), *WorldPackage->GetName());
 		}
@@ -9553,10 +9471,10 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 	WorldContext.World()->WorldType = WorldContext.WorldType;
 	
 	// Fixme: hacky but we need to set PackageFlags here if we are in a PIE Context.
-	// Also, dont add to root when in PIE, since PIE doesn't remove world from root
+	// Also, don't add to root when in PIE, since PIE doesn't remove world from root
 	if (WorldContext.WorldType == EWorldType::PIE)
 	{
-		check((CastChecked<UPackage>(WorldContext.World()->GetOutermost())->PackageFlags & PKG_PlayInEditor) == PKG_PlayInEditor);
+		check(WorldContext.World()->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor));
 		WorldContext.World()->ClearFlags(RF_Standalone);
 	}
 	else
@@ -9620,13 +9538,14 @@ bool UEngine::LoadMap( FWorldContext& WorldContext, FURL URL, class UPendingNetG
 		WorldContext.World()->FlushLevelStreaming(EFlushLevelStreamingType::Visibility);
 	}
 	
-	UNavigationSystem::InitializeForWorld(WorldContext.World(), FNavigationSystemRunMode::GameMode);
-	
 	// Note that AI system will be created only if ai-system-creation conditions are met
 	WorldContext.World()->CreateAISystem();
 
 	// Initialize gameplay for the level.
 	WorldContext.World()->InitializeActorsForPlay(URL);		
+
+	// calling it after InitializeActorsForPlay has been called to have all potential bounding boxed initialized
+	UNavigationSystem::InitializeForWorld(WorldContext.World(), FNavigationSystemRunMode::GameMode);
 
 	// Remember the URL. Put this before spawning player controllers so that
 	// a player controller can get the map name during initialization and
@@ -10047,6 +9966,11 @@ UGameViewportClient* UEngine::GameViewportForWorld(const UWorld *InWorld) const
 	return (Context ? Context->GameViewport : NULL);
 }
 
+bool UEngine::AreGameAnalyticsEnabled() const
+{ 
+	return GetDefault<UEndUserSettings>()->bSendAnonymousUsageDataToEpic;
+}
+
 FWorldContext* UEngine::GetWorldContextFromGameViewport(const UGameViewportClient *InViewport)
 {
 	for (FWorldContext& WorldContext : WorldList)
@@ -10248,16 +10172,16 @@ void UEngine::VerifyLoadMapWorldCleanup()
 		const bool bIsPersistantWorldType = (World->WorldType == EWorldType::Inactive) || (World->WorldType == EWorldType::Preview);
 		if (!bIsPersistantWorldType && !WorldHasValidContext(World))
 		{
-			// Print some debug information...
-			UE_LOG(LogLoad, Log, TEXT("%s not cleaned up by garbage collection! "), *World->GetFullName());
-			StaticExec(World, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *World->GetPathName()));
-			TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( World, true, GARBAGE_COLLECTION_KEEPFLAGS );
-			FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, World );
-			UE_LOG(LogLoad, Log, TEXT("%s"),*ErrorString);
-			// before asserting.
-			UE_LOG(LogLoad, Fatal, TEXT("%s not cleaned up by garbage collection!") LINE_TERMINATOR TEXT("%s") , *World->GetFullName(), *ErrorString );
+				// Print some debug information...
+				UE_LOG(LogLoad, Log, TEXT("%s not cleaned up by garbage collection! "), *World->GetFullName());
+				StaticExec(World, *FString::Printf(TEXT("OBJ REFS CLASS=WORLD NAME=%s"), *World->GetPathName()));
+				TMap<UObject*,UProperty*>	Route		= FArchiveTraceRoute::FindShortestRootPath( World, true, GARBAGE_COLLECTION_KEEPFLAGS );
+				FString						ErrorString	= FArchiveTraceRoute::PrintRootPath( Route, World );
+				UE_LOG(LogLoad, Log, TEXT("%s"),*ErrorString);
+				// before asserting.
+				UE_LOG(LogLoad, Fatal, TEXT("%s not cleaned up by garbage collection!") LINE_TERMINATOR TEXT("%s") , *World->GetFullName(), *ErrorString );
+			}
 		}
-	}
 }
 
 
@@ -10625,19 +10549,19 @@ bool UEngine::CommitMapChange( FWorldContext &Context )
 		if (Context.PendingLevelStreamingStatusUpdates.Num() > 0)
 		{
 			for (const FLevelStreamingStatus& PendingUpdate : Context.PendingLevelStreamingStatusUpdates)
-			{
+				{
 				ULevelStreaming** Found = Context.World()->StreamingLevels.FindByPredicate([&](ULevelStreaming* Level){
 					return Level && Level->GetWorldAssetPackageFName() == PendingUpdate.PackageName;
 				});
 
 				if (Found)
-				{
+					{
 					(*Found)->bShouldBeLoaded  = PendingUpdate.bShouldBeLoaded;
 					(*Found)->bShouldBeVisible = PendingUpdate.bShouldBeVisible;
 					(*Found)->LevelLODIndex    = PendingUpdate.LODIndex;
-				}
-				else
-				{
+						}
+						else
+						{
 					UE_LOG(LogStreaming, Log, TEXT("Unable to find streaming object %s"), *PendingUpdate.PackageName.ToString());
 				}
 			}
@@ -11048,99 +10972,6 @@ void FSystemResolution::RequestResolutionChange(int32 InResX, int32 InResY, EWin
 
 	FString NewValue = FString::Printf(TEXT("%dx%d%s"), InResX, InResY, *WindowModeSuffix);
 	CVarSystemResolution->Set(*NewValue, ECVF_SetByConsole);
-}
-
-void RemoveAlphaFromColors( TArray<FColor>& Colors )
-{
-	for( FColor& Color : Colors )
-	{
-		Color.A = 255;
-	}
-}
-
-void UEngine::HandleScreenshotCaptured(int32 Width, int32 Height, const TArray<FColor>& Colors)
-{
-#if WITH_EDITOR
-	if(GIsDumpingMovie && Colors.Num() > 0)
-	{
-		struct Local
-		{
-			
-
-			static FString GenerateScreenshotFilename(const FString& Extension)
-			{
-				static const int32 MaxTestScreenShotIndex = 65536;
-				static int32 ScreenShotIndex = 0;
-
-				FString BaseFileName;
-				FScreenshotRequest::CreateViewportScreenShotFilename(BaseFileName);
-
-				for (int32 TestScreenShotIndex = ScreenShotIndex + 1; TestScreenShotIndex < MaxTestScreenShotIndex; ++TestScreenShotIndex)
-				{
-					const FString TestFileName = FString::Printf(TEXT("%s%05i.%s"), *BaseFileName, TestScreenShotIndex, *Extension);
-					if (IFileManager::Get().FileSize(*TestFileName) < 0)
-					{
-						ScreenShotIndex = TestScreenShotIndex;
-						return TestFileName;
-					}
-				}
-
-				UE_LOG(LogEngine, Error, TEXT("Could not generate valid screenshot filename"));
-				return FString();
-			}
-		};
-
-		IImageWrapperModule& ImageWrapperModule = FModuleManager::LoadModuleChecked<IImageWrapperModule>( FName("ImageWrapper") );
-
-		switch(MatineeScreenshotOptions.MatineeCaptureType.GetValue())
-		{
-		default:
-		case EMatineeCaptureType::BMP:
-			{
-				const FString Filename = Local::GenerateScreenshotFilename(TEXT("bmp"));
-				if (Filename.Len() > 0)
-				{
-					FFileHelper::CreateBitmap(*Filename, Width, Height, Colors.GetData());
-				}
-			}
-			break;
-		case EMatineeCaptureType::PNG:
-			{
-				const FString Filename = Local::GenerateScreenshotFilename(TEXT("png"));
-				if (Filename.Len() > 0)
-				{
-					IImageWrapperPtr ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::PNG);
-
-					TArray<FColor> FinalColors = Colors;
-					// Matinee PNG export does not support writing alpha values
-					RemoveAlphaFromColors( FinalColors );
-
-					if (ImageWrapper.IsValid() && ImageWrapper->SetRaw(&FinalColors[0], FinalColors.Num() * sizeof(FColor), Width, Height, ERGBFormat::BGRA, 8))
-					{
-						FFileHelper::SaveArrayToFile(ImageWrapper->GetCompressed(), *Filename);
-					}
-				}
-			}
-			break;
-		case EMatineeCaptureType::JPEG:
-			{
-				const FString Filename = Local::GenerateScreenshotFilename(TEXT("jpeg"));
-				if (Filename.Len() > 0)
-				{
-					IImageWrapperPtr ImageWrapper = ImageWrapperModule.CreateImageWrapper(EImageFormat::JPEG);
-					if (ImageWrapper.IsValid() && ImageWrapper->SetRaw(&Colors[0], Colors.Num() * sizeof(FColor), Width, Height, ERGBFormat::BGRA, 8))
-					{
-						FFileHelper::SaveArrayToFile(ImageWrapper->GetCompressed(), *Filename);
-					}
-				}
-			}
-			break;
-		case EMatineeCaptureType::AVI:
-			// Do nothing in this case
-			break;
-		}
-	}
-#endif
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -11891,7 +11722,8 @@ int32 UEngine::RenderStatSoundWaves(UWorld* World, FViewport* Viewport, FCanvas*
 
 			ActiveSounds.Add(WaveInstance->ActiveSound);
 
-			AActor* SoundOwner = WaveInstance->ActiveSound->AudioComponent.IsValid() ? WaveInstance->ActiveSound->AudioComponent->GetOwner() : NULL;
+			UAudioComponent* AudioComponent = WaveInstance->ActiveSound->GetAudioComponent();
+			AActor* SoundOwner = AudioComponent ? AudioComponent->GetOwner() : nullptr;
 			USoundClass* SoundClass = WaveInstance->SoundClass;
 
 			FString TheString = *FString::Printf(TEXT("%4i.    %6.2f  %s   Owner: %s   SoundClass: %s"),

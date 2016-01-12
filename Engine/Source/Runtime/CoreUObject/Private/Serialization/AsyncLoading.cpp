@@ -643,15 +643,20 @@ EAsyncPackageState::Type FAsyncLoadingThread::ProcessLoadedPackages(bool bUseTim
 				{
 					FScopeLock LoadedLock(&LoadedPackagesToProcessCritical);					
 					LoadedPackagesToProcess.RemoveAt(PackageIndex--);
-					// Detach linker in mutex scope to make sure that if something requests this package
-					// before it's been deleted does not try to associate the new async package with the old linker
-					// while this async package is still bound to it.
-					Package->DetachLinker();
+					
 					if (FPlatformProperties::RequiresCookedData())
 					{
 						// Emulates ResetLoaders on the package linker's linkerroot.
 						Package->ResetLoader();
 					}
+					else
+					{
+						// Detach linker in mutex scope to make sure that if something requests this package
+						// before it's been deleted does not try to associate the new async package with the old linker
+						// while this async package is still bound to it.
+						Package->DetachLinker();
+					}
+					
 				}
 
 				// Incremented on the Async Thread, now decrement as we're done with this package				
@@ -1251,7 +1256,7 @@ EAsyncPackageState::Type FAsyncPackage::CreateLinker()
 		FScopeCycleCounterUObject ConstructorScope(Package, GET_STATID(STAT_FAsyncPackage_CreateLinker));
 
 		// Set package specific data 
-		Package->PackageFlags |= Desc.PackageFlags;
+		Package->SetPackageFlags(Desc.PackageFlags);
 #if WITH_EDITOR
 		Package->PIEInstanceID = Desc.PIEInstanceID;
 #endif
@@ -1479,7 +1484,7 @@ EAsyncPackageState::Type FAsyncPackage::LoadImports()
 
 		// Handle circular dependencies - try to find existing packages.
 		UPackage* ExistingPackage = dynamic_cast<UPackage*>(StaticFindObjectFast(UPackage::StaticClass(), nullptr, ImportPackageFName, true));
-		if (ExistingPackage && !(ExistingPackage->PackageFlags & PKG_CompiledIn) && !ExistingPackage->bHasBeenFullyLoaded)//!ExistingPackage->HasAnyFlags(RF_WasLoaded))
+		if (ExistingPackage && !ExistingPackage->HasAnyPackageFlags(PKG_CompiledIn) && !ExistingPackage->bHasBeenFullyLoaded)//!ExistingPackage->HasAnyFlags(RF_WasLoaded))
 		{
 			// The import package already exists. Check if it's currently being streamed as well. If so, make sure
 			// we add all dependencies that don't yet have linkers created otherwise we risk that if the current package
@@ -1765,6 +1770,7 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 	LastTypeOfWorkPerformed = TEXT("postloading_gamethread");
 
 	TArray<UObject*>& ObjLoadedInPostLoad = FUObjectThreadContext::Get().ObjLoaded;
+	TArray<UObject*> ObjLoadedInPostLoadLocal;
 
 	while (DeferredPostLoadIndex < DeferredPostLoadObjects.Num() && 
 		!AsyncLoadingThread.IsAsyncLoadingSuspended() &&
@@ -1783,18 +1789,29 @@ EAsyncPackageState::Type FAsyncPackage::PostLoadDeferredObjects(double InTickSta
 			// There's no going back to the async tick loop from here.
 			UE_LOG(LogStreaming, Warning, TEXT("Detected %d objects loaded in PostLoad while streaming, this may cause hitches as we're blocking async loading to pre-load them."), ObjLoadedInPostLoad.Num());
 			
-			// Make sure all objects loaded in PostLoad get post-loaded too
-			DeferredPostLoadObjects.Append(ObjLoadedInPostLoad);
+			// Copy to local array because ObjLoadedInPostLoad can change while we're iterating over it
+			ObjLoadedInPostLoadLocal.Append(ObjLoadedInPostLoad);
+			ObjLoadedInPostLoad.Reset();
 
-			// Preload (aka serialize) the objects loaded in PostLoad.
-			for (UObject* PreLoadObject : ObjLoadedInPostLoad)
+			while (ObjLoadedInPostLoadLocal.Num())
 			{
-				if (PreLoadObject && PreLoadObject->GetLinker())
+				// Make sure all objects loaded in PostLoad get post-loaded too
+				DeferredPostLoadObjects.Append(ObjLoadedInPostLoadLocal);
+
+				// Preload (aka serialize) the objects loaded in PostLoad.
+				for (UObject* PreLoadObject : ObjLoadedInPostLoadLocal)
 				{
-					PreLoadObject->GetLinker()->Preload(PreLoadObject);
+					if (PreLoadObject && PreLoadObject->GetLinker())
+					{
+						PreLoadObject->GetLinker()->Preload(PreLoadObject);
+					}
 				}
-			}
-			ObjLoadedInPostLoad.Empty();
+
+				// Other objects could've been loaded while we were preloading, continue until we've processed all of them.
+				ObjLoadedInPostLoadLocal.Reset();
+				ObjLoadedInPostLoadLocal.Append(ObjLoadedInPostLoad);
+				ObjLoadedInPostLoad.Reset();
+			}			
 		}
 
 		LastObjectWorkWasPerformedOn = Object;		

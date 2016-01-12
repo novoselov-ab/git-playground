@@ -110,6 +110,27 @@ public class AndroidPlatform : Platform
 		return Path.Combine(Path.GetDirectoryName(ApkName), "Install_" + Params.ShortProjectName + (!NoOBBInstall ? "_" : "_NoOBBInstall_") + Params.ClientConfigsToBuild[0].ToString() + Architecture + GPUArchitecture + (Utils.IsRunningOnMono ? ".command" : ".bat"));
 	}
 
+	private List<string> CollectPluginDataPaths(DeploymentContext SC)
+	{
+		// collect plugin extra data paths from target receipts
+		List<string> PluginExtras = new List<string>();
+		foreach (BuildReceipt Receipt in SC.StageTargetReceipts)
+		{
+			var Results = Receipt.AdditionalProperties.Where(x => x.Name == "AndroidPlugin");
+			foreach (var Property in Results)
+			{
+				// Keep only unique paths
+				string PluginPath = Property.Value;
+				if (PluginExtras.FirstOrDefault(x => x == PluginPath) == null)
+				{
+					PluginExtras.Add(PluginPath);
+					Log("AndroidPlugin: {0}", PluginPath);
+				}
+			}
+		}
+		return PluginExtras;
+	}
+
 	public override void Package(ProjectParams Params, DeploymentContext SC, int WorkingCL)
 	{
 		var Architectures = UnrealBuildTool.AndroidToolChain.GetAllArchitectures();
@@ -155,6 +176,9 @@ public class AndroidPlatform : Platform
 			ObbFile.Save();
 		}
 
+		// collect plugin extra data paths from target receipts
+		((UnrealBuildTool.Android.UEDeployAndroid)Deploy).SetAndroidPluginData(CollectPluginDataPaths(SC));
+
 		foreach (string Architecture in Architectures)
 		{
 			foreach (string GPUArchitecture in GPUArchitectures)
@@ -176,6 +200,7 @@ public class AndroidPlatform : Platform
 				{
 					string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 					string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
+					((UnrealBuildTool.Android.UEDeployAndroid)Deploy).SetAndroidPluginData(CollectPluginDataPaths(SC));
 					Deploy.PrepForUATPackageOrDeploy(Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, false);
 				}
 
@@ -515,6 +540,7 @@ public class AndroidPlatform : Platform
 		{
 			string CookFlavor = SC.FinalCookPlatform.IndexOf("_") > 0 ? SC.FinalCookPlatform.Substring(SC.FinalCookPlatform.IndexOf("_")) : "";
 			string SOName = GetSONameWithoutArchitecture(Params, SC.StageExecutables[0]);
+			((UnrealBuildTool.Android.UEDeployAndroid)Deploy).SetAndroidPluginData(CollectPluginDataPaths(SC));
 			Deploy.PrepForUATPackageOrDeploy(Params.ShortProjectName, SC.ProjectRoot, SOName, SC.LocalRoot + "/Engine", Params.Distribution, CookFlavor, true);
 		}
 
@@ -802,6 +828,7 @@ public class AndroidPlatform : Platform
 	/** Internal usage for GetPackageName */
 	private static string PackageLine = null;
 	private static Mutex PackageInfoMutex = new Mutex();
+	private static string LaunchableActivityLine = null;
 
 	/** Run an external exe (and capture the output), given the exe path and the commandline. */
 	private static string GetPackageInfo(string ApkName, bool bRetrieveVersionCode)
@@ -817,6 +844,7 @@ public class AndroidPlatform : Platform
 		using (var GameProcess = Process.Start(ExeInfo))
 		{
 			PackageLine = null;
+			LaunchableActivityLine = null;
 			GameProcess.BeginOutputReadLine();
 			GameProcess.OutputDataReceived += ParsePackageName;
 			GameProcess.WaitForExit();
@@ -838,6 +866,22 @@ public class AndroidPlatform : Platform
 		return ReturnValue;
 	}
 
+	/** Returns the launch activity name to launch (must call GetPackageInfo first), returns "com.epicgames.ue4.SplashActivity" default if not found */
+	private static string GetLaunchableActivityName()
+	{
+		string ReturnValue = "com.epicgames.ue4.SplashActivity";
+		if (LaunchableActivityLine != null)
+		{
+			// the line should look like: launchable-activity: name='com.epicgames.ue4.SplashActivity'  label='TappyChicken' icon=''
+			string[] Tokens = LaunchableActivityLine.Split("'".ToCharArray());
+			if (Tokens.Length >= 2)
+			{
+				ReturnValue = Tokens[1];
+			}
+		}
+		return ReturnValue;
+	}
+
 	/** Simple function to pipe output asynchronously */
 	private static void ParsePackageName(object Sender, DataReceivedEventArgs Event)
 	{
@@ -851,6 +895,14 @@ public class AndroidPlatform : Platform
 				if (Line.StartsWith("package:"))
 				{
 					PackageLine = Line;
+				}
+			}
+			if (LaunchableActivityLine == null)
+			{
+				string Line = Event.Data;
+				if (Line.StartsWith("launchable-activity:"))
+				{
+					LaunchableActivityLine = Line;
 				}
 			}
 		}
@@ -1060,7 +1112,7 @@ public class AndroidPlatform : Platform
 		}
 
 		// start the app on device!
-		string CommandLine = "shell am start -n " + PackageName + "/com.epicgames.ue4.GameActivity";
+		string CommandLine = "shell am start -n " + PackageName + "/" + GetLaunchableActivityName();
 		ProcessResult ClientProcess = RunAdbCommand(Params, CommandLine, null, ClientRunFlags);
 
 
@@ -1171,7 +1223,14 @@ public class AndroidPlatform : Platform
 		// if packaging is enabled, always create a pak, otherwise use the Params.Pak value
 		return Params.Package ? PakType.Always : PakType.DontCare;
 	}
-    
+
+	/*
+	public override bool RequiresPackageToDeploy
+	{
+		get { return true; }
+	}
+    */
+
 	#region Hooks
 
 	public override void PostBuildTarget(UE4Build Build, string ProjectName, string UProjectPath, string Config)

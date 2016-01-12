@@ -67,18 +67,6 @@ void FHairWorksMaterialDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 			HairProperties->Add(HairMaterial);
 	}
 
-	// Reset handler
-	static auto GetDefaultHairMaterial = [](const UHairWorksMaterial& HairMaterial)->UHairWorksMaterial&
-	{
-		// Use asset's hair material as default object if possible.
-		if(auto* HairWorksComponent = Cast<UHairWorksComponent>(HairMaterial.GetOuter()))
-		{
-			if(HairWorksComponent->HairInstance.Hair != nullptr)
-				return *HairWorksComponent->HairInstance.Hair->HairMaterial;
-		}
-
-		return *UHairWorksMaterial::StaticClass()->GetDefaultObject<UHairWorksMaterial>();
-	};
 
 	auto IsResetVisible = [](TSharedRef<IPropertyHandle> PropertyHandle, TSharedRef<TArray<TWeakObjectPtr<UHairWorksMaterial>>> SelectedObjects)
 	{
@@ -100,22 +88,6 @@ void FHairWorksMaterialDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		return false;
 	};
 
-	auto ResetProperty = [](TSharedRef<IPropertyHandle> PropertyHandle, TSharedRef<TArray<TWeakObjectPtr<UHairWorksMaterial>>> SelectedObjects)
-	{
-		if(!PropertyHandle->IsValidHandle())
-			return;
-
-		for(auto& HairMaterial : *SelectedObjects)
-		{
-			if(!HairMaterial.IsValid())
-				continue;
-
-			auto& DefaultHairMaterial = GetDefaultHairMaterial(*HairMaterial);
-
-			auto& Property = *PropertyHandle->GetProperty();
-			Property.CopyCompleteValue_InContainer(HairMaterial.Get(), &DefaultHairMaterial);
-		}
-	};
 
 
 	// Conditional edit handler
@@ -145,9 +117,12 @@ void FHairWorksMaterialDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		auto PropertyHandle = DetailBuilder.GetProperty(PropertyName);
 
 		DetailProperty.OverrideResetToDefault(
-			TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(IsResetVisible, PropertyHandle, HairProperties)),
-			FSimpleDelegate::CreateStatic(ResetProperty, PropertyHandle, HairProperties)
-			);
+
+			FResetToDefaultOverride::Create(
+				FIsResetToDefaultVisible::CreateStatic(&FHairWorksMaterialDetails::IsResetVisible, HairProperties),
+				FResetToDefaultHandler::CreateStatic(&FHairWorksMaterialDetails::ResetProperty, HairProperties)
+			)
+		);
 
 		DetailProperty.EditCondition(
 			TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateStatic(IsEditable, PropertyHandle, HairProperties)),
@@ -182,3 +157,54 @@ void FHairWorksMaterialDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBui
 		}
 	}
 }
+
+bool FHairWorksMaterialDetails::IsResetVisible(TSharedRef<IPropertyHandle> PropertyHandle, TSharedRef<TArray<TWeakObjectPtr<UHairWorksMaterial>>> SelectedObjects)
+{
+	if (!PropertyHandle->IsValidHandle())
+		return false;
+
+	for (auto& HairMaterial : *SelectedObjects)
+	{
+		if (!HairMaterial.IsValid())
+			continue;
+
+		auto& DefaultHairMaterial = GetDefaultHairMaterial(*HairMaterial);
+
+		auto& Property = *PropertyHandle->GetProperty();
+		if (!Property.Identical_InContainer(HairMaterial.Get(), &DefaultHairMaterial))
+			return true;
+	}
+
+	return false;
+}
+
+void FHairWorksMaterialDetails::ResetProperty(TSharedRef<IPropertyHandle> PropertyHandle, TSharedRef<TArray<TWeakObjectPtr<UHairWorksMaterial>>> SelectedObjects)
+{
+	if (!PropertyHandle->IsValidHandle())
+		return;
+
+	for (auto& HairMaterial : *SelectedObjects)
+	{
+		if (!HairMaterial.IsValid())
+			continue;
+
+		auto& DefaultHairMaterial = GetDefaultHairMaterial(*HairMaterial);
+
+		auto& Property = *PropertyHandle->GetProperty();
+		Property.CopyCompleteValue_InContainer(HairMaterial.Get(), &DefaultHairMaterial);
+	}
+}
+
+// Reset handler
+UHairWorksMaterial& FHairWorksMaterialDetails::GetDefaultHairMaterial(const UHairWorksMaterial& HairMaterial)
+{
+	// Use asset's hair material as default object if possible.
+	if (auto* HairWorksComponent = Cast<UHairWorksComponent>(HairMaterial.GetOuter()))
+	{
+		if (HairWorksComponent->HairInstance.Hair != nullptr)
+			return *HairWorksComponent->HairInstance.Hair->HairMaterial;
+	}
+
+	return *UHairWorksMaterial::StaticClass()->GetDefaultObject<UHairWorksMaterial>();
+};
+

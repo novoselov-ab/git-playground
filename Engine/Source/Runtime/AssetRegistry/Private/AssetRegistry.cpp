@@ -392,7 +392,7 @@ bool FAssetRegistry::GetAssets(const FARFilter& Filter, TArray<FAssetData>& OutA
 				}
 
 				// Skip assets that were loaded for diffing
-				if ( InMemoryPackage->PackageFlags & PKG_ForDiffing )
+				if (InMemoryPackage->HasAnyPackageFlags(PKG_ForDiffing))
 				{
 					return;
 				}
@@ -469,7 +469,7 @@ bool FAssetRegistry::GetAssets(const FARFilter& Filter, TArray<FAssetData>& OutA
 				}
 
 				// This asset is in memory and passes all filters
-				FAssetData* AssetData = new (OutAssetData) FAssetData(PackageName, PackagePath, FName(*GroupNamesStr), Obj->GetFName(), Obj->GetClass()->GetFName(), TagMap, InMemoryPackage->GetChunkIDs());
+				FAssetData* AssetData = new (OutAssetData)FAssetData(PackageName, PackagePath, FName(*GroupNamesStr), Obj->GetFName(), Obj->GetClass()->GetFName(), TagMap, InMemoryPackage->GetChunkIDs(), InMemoryPackage->GetPackageFlags());
 			}
 		};
 
@@ -1167,7 +1167,7 @@ void FAssetRegistry::AssetCreated(UObject* NewAsset)
 		UPackage* NewPackage = NewAsset->GetOutermost();
 
 		// Mark this package as newly created.
-		NewPackage->PackageFlags |= PKG_NewlyCreated;
+		NewPackage->SetPackageFlags(PKG_NewlyCreated);
 
 		const FString NewPackageName = NewPackage->GetName();
 		const FString Filename = FPackageName::LongPackageNameToFilename(NewPackageName, FPackageName::GetAssetPackageExtension());
@@ -1694,6 +1694,16 @@ void FAssetRegistry::AssetSearchDataGathered(const double TickStartTime, TArray<
 	for (AssetIndex = 0; AssetIndex < AssetResults.Num(); ++AssetIndex)
 	{
 		IGatheredAssetData*& BackgroundResult = AssetResults[AssetIndex];
+
+		// If this data is cooked and it we couldn't find any asset in its export table then try load the entire package 
+		if (BackgroundResult->IsCookedAndRequiresLoading())
+		{
+			LoadPackage(nullptr, *BackgroundResult->GetPackageName(), 0);
+			delete BackgroundResult;
+			BackgroundResult = nullptr;
+			continue;
+		}
+
 		FAssetData Result = BackgroundResult->ToAssetData();
 
 		// Try to update any asset data that may already exist

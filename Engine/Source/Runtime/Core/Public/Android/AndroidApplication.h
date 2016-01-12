@@ -37,6 +37,7 @@ public:
 
 	// Returns the java environment
 	static void InitializeJavaEnv(JavaVM* VM, jint Version, jobject GlobalThis);
+	static jobject GetGameActivityThis();
 	static JNIEnv* GetJavaEnv(bool bRequireGlobalThis = true);
 	static jclass FindJavaClass(const char* name);
 	static void DetachJavaEnv();
@@ -61,7 +62,9 @@ public:
 	virtual IInputInterface* GetInputInterface() override;
 
 	virtual TSharedRef< FGenericWindow > MakeWindow() override;
-	
+
+	virtual void AddExternalInputDevice(TSharedPtr<class IInputDevice> InputDevice);
+
 	void InitializeWindow( const TSharedRef< FGenericWindow >& InWindow, const TSharedRef< FGenericWindowDefinition >& InDefinition, const TSharedPtr< FGenericWindow >& InParent, const bool bShowImmediately );
 
 	static void OnWindowSizeChanged();
@@ -74,6 +77,7 @@ private:
 private:
 
 	TSharedPtr< class FAndroidInputInterface > InputInterface;
+	bool bHasLoadedInputPlugins;
 
 	TArray< TSharedRef< FAndroidWindow > > Windows;
 

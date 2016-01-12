@@ -858,26 +858,6 @@ void FKismetEditorUtilities::CompileBlueprint(UBlueprint* BlueprintObj, bool bIs
 	if (BlueprintPackage != NULL)
 	{
 		BlueprintPackage->SetDirtyFlag(bStartedWithUnsavedChanges);
-
-		UBlueprintEditorSettings* Settings = GetMutableDefault<UBlueprintEditorSettings>();
-		const bool bShouldSaveOnCompile = !bIsRegeneratingOnLoad && (( Settings->SaveOnCompile == SoC_Always ) || ( ( Settings->SaveOnCompile == SoC_SuccessOnly ) && ( BlueprintObj->Status == BS_UpToDate ) ));
-
-		// Only try to save on compile if we aren't running a commandlet (i.e. cooking a blueprint shouldn't try to save it)
-		if ( !IsRunningCommandlet() && bShouldSaveOnCompile && !GIsAutomationTesting )
-		{
-			bool const bIsLevelPackage = (UWorld::FindWorldInPackage(BlueprintPackage) != nullptr);
-			// we don't want to save the entire level (especially if this 
-			// compile was already kicked off as a result of a level save, as it
-			// could cause a recursive save)... let the "SaveOnCompile" setting 
-			// only save blueprint assets
-			if (!bIsLevelPackage)
-			{
-				TArray<UPackage*> PackagesToSave;
-				PackagesToSave.Add(BlueprintPackage);
-
-				FEditorFileUtils::PromptForCheckoutAndSave(PackagesToSave, /*bCheckDirty =*/true, /*bPromptToSave =*/false);
-			}			
-		}
 	}	
 }
 
@@ -1184,6 +1164,39 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 	TMap<USceneComponent*, USCS_Node*> SceneComponentsToAdd;
 	TMap<USceneComponent*, USCS_Node*> InstanceComponentToNodeMap;
 
+	struct FAddComponentsToBlueprintImpl
+	{
+		/** 
+		 * Creates a new USCS_Node in the TargetSCS, duplicating the specified 
+		 * component (leaving the new node unattached). If a copy was already 
+		 * made (found  in NewSceneComponents) then that will be returned instead.
+		 */
+		static USCS_Node* MakeComponentCopy(UActorComponent* ActorComponent, USimpleConstructionScript* TargetSCS, TMap<USceneComponent*, USCS_Node*>& NewSceneComponents)
+		{
+			USceneComponent* AsSceneComponent = Cast<USceneComponent>(ActorComponent);
+			if (AsSceneComponent != nullptr)
+			{
+				USCS_Node** ExistingCopy = NewSceneComponents.Find(AsSceneComponent);
+				if (ExistingCopy != nullptr)
+				{
+					return *ExistingCopy;
+				}
+			}
+
+			USCS_Node* NewSCSNode = TargetSCS->CreateNode(ActorComponent->GetClass(), ActorComponent->GetFName());
+			UEditorEngine::CopyPropertiesForUnrelatedObjects(ActorComponent, NewSCSNode->ComponentTemplate);
+
+			// Clear the instance component flag
+			NewSCSNode->ComponentTemplate->CreationMethod = EComponentCreationMethod::Native;
+
+			if (AsSceneComponent != nullptr)
+			{
+				NewSceneComponents.Add(AsSceneComponent, NewSCSNode);
+			}
+			return NewSCSNode;
+		}
+	};
+
 	AActor* Actor = nullptr;
 
 	for (UActorComponent* ActorComponent : Components)
@@ -1200,14 +1213,9 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 				check(Actor);
 			}
 
-			USCS_Node* SCSNode = SCS->CreateNode(ActorComponent->GetClass(), ActorComponent->GetFName());
-			UEditorEngine::CopyPropertiesForUnrelatedObjects(ActorComponent, SCSNode->ComponentTemplate);
-
-			// Clear the instance component flag
-			SCSNode->ComponentTemplate->CreationMethod = EComponentCreationMethod::Native;
+			USCS_Node* SCSNode = FAddComponentsToBlueprintImpl::MakeComponentCopy(ActorComponent, SCS, InstanceComponentToNodeMap);
 
 			USceneComponent* SceneComponent = Cast<USceneComponent>(ActorComponent);
-
 			// The easy part is non-scene component or the Root simply add it
 			if (SceneComponent == nullptr)
 			{
@@ -1215,8 +1223,6 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 			}
 			else
 			{
-				InstanceComponentToNodeMap.Add(SceneComponent,SCSNode);
-
 				if (ActorComponent == Actor->GetRootComponent())
 				{
 					if (OptionalNewRootNode != nullptr)
@@ -1232,12 +1238,26 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 				else if (SceneComponent->AttachParent->IsCreatedByConstructionScript())
 				{
 					USCS_Node* ParentSCSNode = nullptr;
-					for (UBlueprint* ParentBlueprint : ParentBPStack)
+					if (USCS_Node** ParentSCSNodePtr = InstanceComponentToNodeMap.Find(SceneComponent->AttachParent))
 					{
-						ParentSCSNode = ParentBlueprint->SimpleConstructionScript->FindSCSNode(SceneComponent->AttachParent->GetFName());
-						if (ParentSCSNode)
+						ParentSCSNode = *ParentSCSNodePtr;
+					}
+					else if (Components.Contains(SceneComponent->AttachParent))
+					{
+						// since you cannot rely on the order of the supplied  
+						// Components array, we might be looking for a parent 
+						// that hasn't been added yet
+						ParentSCSNode = FAddComponentsToBlueprintImpl::MakeComponentCopy(SceneComponent->AttachParent, SCS, InstanceComponentToNodeMap);
+					}
+					else
+					{
+						for (UBlueprint* ParentBlueprint : ParentBPStack)
 						{
-							break;
+							ParentSCSNode = ParentBlueprint->SimpleConstructionScript->FindSCSNode(SceneComponent->AttachParent->GetFName());
+							if (ParentSCSNode)
+							{
+								break;
+							}
 						}
 					}
 					check(ParentSCSNode);

@@ -241,6 +241,20 @@ void SWindow::Construct(const FArguments& InArgs)
 	const FPlatformRect& VirtualDisplayRect = DisplayMetrics.VirtualDisplayRect;
 	const FPlatformRect& PrimaryDisplayRect = DisplayMetrics.PrimaryDisplayWorkAreaRect;
 
+	// If we're showing a pop-up window, to avoid creation of driver crashing sized 
+	// tooltips we limit the size a pop-up window can be if max size limit is unspecified.
+	if ( bIsPopupWindow )
+	{
+		if ( !SizeLimits.GetMaxWidth().IsSet() )
+		{
+			SizeLimits.SetMaxWidth(PrimaryDisplayRect.Right - PrimaryDisplayRect.Left);
+		}
+		if ( !SizeLimits.GetMaxHeight().IsSet() )
+		{
+			SizeLimits.SetMaxHeight(PrimaryDisplayRect.Bottom - PrimaryDisplayRect.Top);
+		}
+	}
+
 	// If we're manually positioning the window we need to check if it's outside
 	// of the virtual bounds of the current displays or too large.
 	if ( AutoCenterRule == EAutoCenter::None && InArgs._SaneWindowPlacement )
@@ -287,6 +301,10 @@ void SWindow::Construct(const FArguments& InArgs)
 			break;
 		}
 
+		// Clamp window size to be no greater than the work area size
+		WindowSize.X = FMath::Min(WindowSize.X, AutoCenterRect.GetSize().X);
+		WindowSize.Y = FMath::Min(WindowSize.Y, AutoCenterRect.GetSize().Y);
+
 		// Setup a position and size for the main frame window that's centered in the desktop work area
 		const FVector2D DisplayTopLeft( AutoCenterRect.Left, AutoCenterRect.Top );
 		const FVector2D DisplaySize( AutoCenterRect.Right - AutoCenterRect.Left, AutoCenterRect.Bottom - AutoCenterRect.Top );
@@ -300,6 +318,8 @@ void SWindow::Construct(const FArguments& InArgs)
 #endif 
 	this->InitialDesiredScreenPosition = WindowPosition;
 	this->InitialDesiredSize = WindowSize;
+
+	Resize(WindowSize);
 
 	// Window visibility is currently driven by whether the window is interactive.
 	this->Visibility = TAttribute<EVisibility>::Create( TAttribute<EVisibility>::FGetter::CreateRaw(this, &SWindow::GetWindowVisibility) );

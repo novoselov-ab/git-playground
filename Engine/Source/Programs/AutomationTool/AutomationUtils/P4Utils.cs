@@ -1654,16 +1654,14 @@ namespace AutomationTool
 
 				string StatusStr = "Status:";
 				int StatusOffset = CmdOutput.LastIndexOf(StatusStr);
-				string DescStr = "Description:";
-				int DescOffset = CmdOutput.LastIndexOf(DescStr);
 
-				if (StatusOffset < 1 || DescOffset < 1 || StatusOffset > DescOffset)
+				if (StatusOffset < 1)
 				{
 					CommandUtils.Log(TraceEventType.Error, "Change {0} could not be parsed\n{1}", CL, CmdOutput);
 					return false;
 				}
 
-				string Status = CmdOutput.Substring(StatusOffset + StatusStr.Length, DescOffset - StatusOffset - StatusStr.Length).Trim();
+				string Status = CmdOutput.Substring(StatusOffset + StatusStr.Length).TrimStart().Split('\n')[0].TrimEnd();
 				CommandUtils.Log(TraceEventType.Information, "Change {0} exists ({1})", CL, Status);
 				Pending = (Status == "pending");
 				return true;
@@ -2219,6 +2217,24 @@ namespace AutomationTool
 				Records.Add(Record);
 			}
 			return Records.ToArray();
+		}
+
+		/// <summary>
+		/// Determines whether a file exists in the depot.
+		/// </summary>
+		/// <param name="DepotFile">Depot path</param>
+		/// <returns>List of records describing the file's mapping. Usually just one, but may be more.</returns>
+		public bool FileExistsInDepot(string DepotFile, bool AllowSpew = true)
+		{
+			string CommandLine = String.Format("-z tag fstat {0}", CommandUtils.MakePathSafeToUseWithCommandLine(DepotFile));
+
+			string Output;
+			if(!LogP4Output(out Output, CommandLine, AllowSpew: false) || Output.Contains("no such file(s)"))
+			{
+				return false;
+			}
+
+			return true;
 		}
 
 		/// <summary>

@@ -62,6 +62,7 @@
 #include "GeneralProjectSettings.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogPlayLevel, Log, All);
+DEFINE_LOG_CATEGORY_STATIC(LogHMD, Log, All);
 
 #define LOCTEXT_NAMESPACE "PlayLevel"
 
@@ -186,7 +187,7 @@ void UEditorEngine::EndPlayMap()
 	{
 		UObject* Object = *It;
 
-		if ((Object->GetOutermost()->PackageFlags & PKG_PlayInEditor) != 0)
+		if (Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			if (Object->HasAnyFlags(RF_Standalone))
 			{
@@ -327,7 +328,7 @@ void UEditorEngine::EndPlayMap()
 	for( FObjectIterator ObjectIt; ObjectIt; ++ObjectIt )
 	{
 		UObject* Object = *ObjectIt;
-		if( Object->GetOutermost()->PackageFlags & PKG_PlayInEditor )
+		if( Object->GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor))
 		{
 			UWorld* TheWorld = UWorld::FindWorldInPackage(Object->GetOutermost());
 			if ( TheWorld )
@@ -642,7 +643,7 @@ void UEditorEngine::TeardownPlaySession(FWorldContext &PieWorldContext)
 	}
 }
 
-void UEditorEngine::PlayMap( const FVector* StartLocation, const FRotator* StartRotation, int32 Destination, int32 InPlayInViewportIndex, bool bUseMobilePreview, bool bMovieCapture )
+void UEditorEngine::PlayMap( const FVector* StartLocation, const FRotator* StartRotation, int32 Destination, int32 InPlayInViewportIndex, bool bUseMobilePreview )
 {
 	// queue up a Play From Here request, this way the load/save won't conflict with the TransBuffer, which doesn't like 
 	// loading and saving to happen during a transaction
@@ -665,9 +666,6 @@ void UEditorEngine::PlayMap( const FVector* StartLocation, const FRotator* Start
 	// Set whether or not we want to use mobile preview mode (PC platform only)
 	bUseMobilePreviewForPlayWorld = bUseMobilePreview;
 	bUseVRPreviewForPlayWorld = false;
-
-	// Set whether or not we want to start movie capturing immediately (PC platform only)
-	bStartMovieCapture = bMovieCapture;
 
 	// tell the editor to kick it off next Tick()
 	bIsPlayWorldQueued = true;
@@ -709,9 +707,6 @@ void UEditorEngine::RequestPlaySession( bool bAtPlayerStart, TSharedPtr<class IL
 	bUseMobilePreviewForPlayWorld = bUseMobilePreview;
 
 	bUseVRPreviewForPlayWorld = bUseVRPreview;
-
-	// Not capturing a movie
-	bStartMovieCapture = false;
 
 	// tell the editor to kick it off next Tick()
 	bIsPlayWorldQueued = true;
@@ -1018,18 +1013,10 @@ void UEditorEngine::StartQueuedPlayMapRequest()
 		// If we're playing in the editor
 		if (!bPlayOnLocalPcSession)
 		{
-			if (bStartMovieCapture)
-			{
-				// @todo Fix for UE4.  This is a temp workaround. 
-				PlayForMovieCapture();
-			}
-			else
-			{
-				PlayInEditor(GetEditorWorldContext().World(), bWantSimulateInEditor);
+			PlayInEditor(GetEditorWorldContext().World(), bWantSimulateInEditor);
 
-				// Editor counts as a client
-				NumClients++;
-			}
+			// Editor counts as a client
+			NumClients++;
 		}
 
 		// Spawn number of clients
@@ -1049,11 +1036,6 @@ void UEditorEngine::StartQueuedPlayMapRequest()
 		else if (bPlayUsingLauncher)
 		{
 			PlayUsingLauncher();
-		}
-		else if (bStartMovieCapture)
-		{
-			// @todo Fix for UE4.  This is a temp workaround. 
-			PlayForMovieCapture();
 		}
 		else
 		{
@@ -1269,6 +1251,13 @@ void UEditorEngine::PlayStandaloneLocalPc(FString MapNameOverride, FIntPoint* Wi
 			AdditionalParameters += TEXT(" -opengl");
 		}
 		AdditionalParameters += TEXT(" -featureleveles2 -faketouches");
+	}
+
+	// Disable the HMD device in the new process if present. The editor process owns the HMD resource.
+	if (GEngine->HMDDevice.IsValid() && GEngine->HMDDevice->IsHMDConnected())
+	{
+		AdditionalParameters += TEXT(" -nohmd");
+		UE_LOG(LogHMD, Warning, TEXT("Standalone game VR not supported, please use VR Preview."));
 	}
 
 	if (PlayInSettings->DisableStandaloneSound)
@@ -1700,8 +1689,25 @@ void UEditorEngine::PlayUsingLauncher()
 		if ((bBuildType == EPlayOnBuildMode::PlayOnBuild_Always) || (bBuildType == PlayOnBuild_Default && (bPlayUsingLauncherHasCode) && bPlayUsingLauncherHasCompiler))
 		{
 			LauncherProfile->SetBuildGame(true);
+		}
 
-			// set the build configuration to be the same as the running editor
+		// set the build/launch configuration 
+		switch (PlayInSettings->LaunchConfiguration)
+		{
+		case LaunchConfig_Debug:
+			LauncherProfile->SetBuildConfiguration(EBuildConfigurations::Debug);
+			break;
+		case LaunchConfig_Development:
+			LauncherProfile->SetBuildConfiguration(EBuildConfigurations::Development);
+			break;
+		case LaunchConfig_Test:
+			LauncherProfile->SetBuildConfiguration(EBuildConfigurations::Test);
+			break;
+		case LaunchConfig_Shipping:
+			LauncherProfile->SetBuildConfiguration(EBuildConfigurations::Shipping);
+			break;
+		default:
+			// same as the running editor
 			FString ExeName = FUnrealEdMisc::Get().GetExecutableForCommandlets();
 			if (ExeName.Contains(TEXT("Debug")))
 			{
@@ -1711,8 +1717,9 @@ void UEditorEngine::PlayUsingLauncher()
 			{
 				LauncherProfile->SetBuildConfiguration(EBuildConfigurations::Development);
 			}
+			break;
 		}
-
+		
 		// select the quickest cook mode based on which in editor cook mode is enabled
 		bool bIncrimentalCooking = true;
 		LauncherProfile->AddCookedPlatform(PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"))));
@@ -1908,139 +1915,6 @@ void UEditorEngine::PlayUsingLauncher()
 			FEditorAnalytics::ReportEvent(TEXT( "Editor.LaunchOn.Failed" ), PlayUsingLauncherDeviceId.Left(PlayUsingLauncherDeviceId.Find(TEXT("@"))), bPlayUsingLauncherHasCode, EAnalyticsErrorCodes::LauncherFailed, ParamArray );
 		}
 	}
-}
-
-void UEditorEngine::PlayForMovieCapture()
-{
-	TArray<FString> SavedMapNames;
-	SaveWorldForPlay(SavedMapNames);
-
-	if (SavedMapNames.Num() == 0)
-	{
-		return;
-	}
-
-	// this parameter tells UE4Editor to run in game mode
-	FString EditorCommandLine = SavedMapNames[0];
-	EditorCommandLine += TEXT(" -game");
-
-	// renderer overrides - hack
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("d3d11"))		?	TEXT(" -d3d11")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("sm5"))		?	TEXT(" -sm5")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("dx11"))		?	TEXT(" -dx11")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("d3d10"))		?	TEXT(" -d3d10")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("sm4"))		?	TEXT(" -sm4")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("dx10"))		?	TEXT(" -dx10")		: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("opengl"))		?	TEXT(" -opengl")	: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("opengl3"))	?	TEXT(" -opengl3")	: TEXT("");
-	EditorCommandLine += FParse::Param(FCommandLine::Get(), TEXT("opengl4"))	?	TEXT(" -opengl4")	: TEXT("");
-
-
-	// this parameter tells UGameEngine to add the auto-save dir to the paths array and repopulate the package file cache
-	// this is needed in order to support streaming levels as the streaming level packages will be loaded only when needed (thus
-	// their package names need to be findable by the package file caching system)
-	// (we add to EditorCommandLine because the URL is ignored by WindowsTools)
-	EditorCommandLine += TEXT(" -PIEVIACONSOLE");
-	
-	// if we want to start movie capturing right away, then append the argument for that
-	if (bStartMovieCapture)
-	{
-		//disable movies
-		EditorCommandLine += FString::Printf(TEXT(" -nomovie"));
-	
-		//set res options
-		EditorCommandLine += FString::Printf(TEXT(" -ResX=%d"), GEditor->MatineeCaptureResolutionX);
-		EditorCommandLine += FString::Printf(TEXT(" -ResY=%d"), GEditor->MatineeCaptureResolutionY);
-					
-		if( GUnrealEd->MatineeScreenshotOptions.bNoTextureStreaming )
-		{
-			EditorCommandLine += TEXT(" -NoTextureStreaming");
-		}
-
-		//set fps
-		EditorCommandLine += FString::Printf(TEXT(" -BENCHMARK -FPS=%d"), GEditor->MatineeScreenshotOptions.MatineeCaptureFPS);
-	
-		if (GEditor->MatineeScreenshotOptions.MatineeCaptureType.GetValue() != EMatineeCaptureType::AVI)
-		{
-			EditorCommandLine += FString::Printf(TEXT(" -MATINEESSCAPTURE=%s"), *GEngine->MatineeScreenshotOptions.MatineeCaptureName);//*GEditor->MatineeNameForRecording);
-
-			switch(GEditor->MatineeScreenshotOptions.MatineeCaptureType.GetValue())
-			{
-			case EMatineeCaptureType::BMP:
-				EditorCommandLine += TEXT(" -MATINEESSFORMAT=BMP");
-				break;
-			case EMatineeCaptureType::PNG:
-				EditorCommandLine += TEXT(" -MATINEESSFORMAT=PNG");
-				break;
-			case EMatineeCaptureType::JPEG:
-				EditorCommandLine += TEXT(" -MATINEESSFORMAT=JPEG");
-				break;
-			default: break;
-			}
-
-			// If buffer visualization dumping is enabled, we need to tell capture process to enable it too
-			static const auto CVarDumpFrames = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.BufferVisualizationDumpFrames"));
-
-			if (CVarDumpFrames && CVarDumpFrames->GetValueOnGameThread())
-			{
-				EditorCommandLine += TEXT(" -MATINEEBUFFERVISUALIZATIONDUMP");
-			}
-		}
-		else
-		{
-			EditorCommandLine += FString::Printf(TEXT(" -MATINEEAVICAPTURE=%s"), *GEngine->MatineeScreenshotOptions.MatineeCaptureName);//*GEditor->MatineeNameForRecording);
-		}
-					
-		EditorCommandLine += FString::Printf(TEXT(" -MATINEEPACKAGE=%s"), *GEngine->MatineeScreenshotOptions.MatineePackageCaptureName);//*GEditor->MatineePackageNameForRecording);
-	
-		if (GEditor->MatineeScreenshotOptions.bCompressMatineeCapture == 1)
-		{
-			EditorCommandLine += TEXT(" -CompressCapture");
-		}
-	}
-
-	FString GamePath = FPlatformProcess::GenerateApplicationPath(FApp::GetName(), FApp::GetBuildConfiguration());
-	FString Params;
-
-	if (FPaths::IsProjectFilePathSet())
-	{
-		Params = FString::Printf(TEXT("\"%s\" %s %s"), *FPaths::GetProjectFilePath(), *EditorCommandLine, *FCommandLine::GetSubprocessCommandline());
-	}
-	else
-	{
-		Params = FString::Printf(TEXT("%s %s %s"), FApp::GetGameName(), *EditorCommandLine, *FCommandLine::GetSubprocessCommandline());
-	}
-
-	if ( FRocketSupport::IsRocket() )
-	{
-		Params += TEXT(" -rocket");
-	}
-
-	bool bRunningDebug = FParse::Param(FCommandLine::Get(), TEXT("debug"));
-	if (bRunningDebug)
-	{
-		Params += TEXT(" -debug");
-	}
-
-	FProcHandle ProcessHandle = FPlatformProcess::CreateProc(*GamePath, *Params, true, false, false, NULL, 0, NULL, NULL);
-
-	if (ProcessHandle.IsValid())
-	{
-		bool bCloseEditor = false;
-
-		GConfig->GetBool(TEXT("MatineeCreateMovieOptions"), TEXT("CloseEditor"), bCloseEditor, GEditorPerProjectIni);
-
-		if (bCloseEditor)
-		{
-			IMainFrameModule& MainFrameModule = FModuleManager::LoadModuleChecked<IMainFrameModule>(TEXT("MainFrame"));
-			MainFrameModule.RequestCloseEditor();
-		}
-	}
-	else
-	{
-		UE_LOG(LogPlayLevel, Error,  TEXT("Failed to run a copy of the game for matinee capture."));
-	}
-	FPlatformProcess::CloseProc(ProcessHandle);
 }
 
 
@@ -2406,6 +2280,7 @@ void UEditorEngine::PlayInEditor( UWorld* InWorld, bool bInSimulateInEditor )
 	PlayInSettings->SetPlayNetMode(OrigPlayNetMode);
 
 	// Monitoring when PIE corrupts references between the World and the PIE generated World for UE-20486
+	if (EditorWorld)
 	{
 		TArray<ULevel*> Levels = EditorWorld->GetLevels();
 
@@ -3544,7 +3419,7 @@ UWorld* UEditorEngine::CreatePIEWorldByDuplication(FWorldContext &WorldContext, 
 	UE_LOG( LogPlayLevel, Log, TEXT("Creating play world package: %s"),  *PlayWorldMapName );	
 
 	UPackage* PlayWorldPackage = CastChecked<UPackage>(CreatePackage(NULL,*PlayWorldMapName));
-	PlayWorldPackage->PackageFlags |= PKG_PlayInEditor;
+	PlayWorldPackage->SetPackageFlags(PKG_PlayInEditor);
 	PlayWorldPackage->PIEInstanceID = WorldContext.PIEInstance;
 	PlayWorldPackage->FileName = InPackage->FileName;
 	PlayWorldPackage->SetGuid( InPackage->GetGuid() );

@@ -3,8 +3,9 @@
 #include "UMGPrivatePCH.h"
 #include "UMGSequencePlayer.h"
 #include "MovieScene.h"
-#include "MovieSceneBindings.h"
-#include "MovieSceneInstance.h"
+#include "MovieSceneBinding.h"
+#include "MovieSceneTrack.h"
+#include "MovieSceneSequenceInstance.h"
 #include "MovieScene.h"
 #include "WidgetAnimation.h"
 
@@ -21,15 +22,28 @@ void UUMGSequencePlayer::InitSequencePlayer( const UWidgetAnimation& InAnimation
 {
 	Animation = &InAnimation;
 
-	UMovieScene* MovieScene = Animation->MovieScene;
+	UMovieScene* MovieScene = Animation->GetMovieScene();
 
 	// Cache the time range of the sequence to determine when we stop
-	TimeRange = MovieScene->GetTimeRange();
+	// Get the range of all sections combined
+	TArray< TRange<float> > Bounds;
+
+	for (int32 TypeIndex = 0; TypeIndex < MovieScene->GetMasterTracks().Num(); ++TypeIndex)
+	{
+		Bounds.Add(MovieScene->GetMasterTracks()[TypeIndex]->GetSectionBoundaries());
+	}
+
+	for (int32 BindingIndex = 0; BindingIndex < MovieScene->GetBindings().Num(); ++BindingIndex)
+	{
+		Bounds.Add(MovieScene->GetBindings()[BindingIndex].GetTimeRange());
+	}
+
+	TimeRange = TRange<float>::Hull(Bounds);
 
 	UWidgetTree* WidgetTree = UserWidget.WidgetTree;
 
 	// Bind to Runtime Objects
-	for (const FWidgetAnimationBinding& Binding : InAnimation.AnimationBindings)
+	for (const FWidgetAnimationBinding& Binding : InAnimation.GetBindings())
 	{
 		UObject* FoundObject = Binding.FindRuntimeObject( *WidgetTree );
 
@@ -104,8 +118,7 @@ void UUMGSequencePlayer::Tick(float DeltaTime)
 
 void UUMGSequencePlayer::Play(float StartAtTime, int32 InNumLoopsToPlay, EUMGSequencePlayMode::Type InPlayMode)
 {
-	UMovieScene* MovieScene = Animation->MovieScene;
-	RootMovieSceneInstance = MakeShareable( new FMovieSceneInstance( *MovieScene ) );
+	RootMovieSceneInstance = MakeShareable( new FMovieSceneSequenceInstance( *Animation ) );
 	RootMovieSceneInstance->RefreshInstance( *this );
 
 	PlayMode = InPlayMode;
@@ -149,7 +162,7 @@ void UUMGSequencePlayer::Stop()
 	TimeCursorPosition = 0;
 }
 
-void UUMGSequencePlayer::GetRuntimeObjects( TSharedRef<FMovieSceneInstance> MovieSceneInstance, const FGuid& ObjectHandle, TArray< UObject* >& OutObjects ) const
+void UUMGSequencePlayer::GetRuntimeObjects( TSharedRef<FMovieSceneSequenceInstance> MovieSceneInstance, const FGuid& ObjectHandle, TArray< UObject* >& OutObjects ) const
 {
 	const TArray<UObject*>* FoundObjects = GuidToRuntimeObjectMap.Find( ObjectHandle );
 

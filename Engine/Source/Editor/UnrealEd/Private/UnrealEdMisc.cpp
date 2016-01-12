@@ -436,6 +436,8 @@ void FUnrealEdMisc::OnInit()
 
 	SlowTask.EnterProgressFrame(10);
 
+	FEditorAnalytics::InitializeSessionManager();
+
 	// Send Project Analytics
 	InitEngineAnalytics();
 	
@@ -565,6 +567,8 @@ void FUnrealEdMisc::EditorAnalyticsHeartbeat()
 	FEngineAnalytics::GetProvider().RecordEvent(TEXT("Editor.Usage.Heartbeat"), Attributes);
 	
 	LastHeartbeatTime = FPlatformTime::Seconds();
+
+	FEditorAnalytics::SessionHeartbeat();
 }
 
 void FUnrealEdMisc::TickAssetAnalytics()
@@ -761,6 +765,8 @@ void FUnrealEdMisc::OnExit()
 		FSlateApplication::Get().GetPlatformApplication()->SendAnalytics(&FEngineAnalytics::GetProvider());
 		FEditorViewportStats::SendUsageData();
 	}
+
+	FEditorAnalytics::ShutdownSessionManager();
 
 	FInputBindingManager::Get().UnregisterUserDefinedChordChanged(OnUserDefinedChordChangedDelegateHandle);
 	FMessageLog::OnMessageSelectionChanged().Unbind();
@@ -1563,7 +1569,7 @@ void FUnrealEdMisc::CancelPerformanceSurvey()
 	LevelEditor.OnMapChanged().Remove( OnMapChangedDelegateHandle );
 }
 
-void FUnrealEdMisc::OnMapChanged( UWorld* World, EMapChangeType::Type MapChangeType )
+void FUnrealEdMisc::OnMapChanged( UWorld* World, EMapChangeType MapChangeType )
 {
 	if (bIsSurveyingPerformance)
 	{
@@ -1691,4 +1697,4 @@ void FUnrealEdMisc::MountTemplateSharedPaths()
 	}
 }
 
-#undef  LOCTEXT_NAMESPACE
+#undef LOCTEXT_NAMESPACE

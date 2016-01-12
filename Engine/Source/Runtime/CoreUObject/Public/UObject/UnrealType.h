@@ -2143,11 +2143,27 @@ public:
 	// UObject interface
 	virtual void Serialize( FArchive& Ar ) override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
+	virtual void BeginDestroy() override;
 	// End of UObject interface
 
 	// UProperty interface
 	virtual bool SameType(const UProperty* Other) const override;
 	// End of UProperty interface
+
+	/**
+	 * Setter function for this property's MetaClass member. Favor this function 
+	 * whilst loading (since, to handle circular dependencies, we defer some 
+	 * class loads and use a placeholder class instead). It properly handles 
+	 * deferred loading placeholder classes (so they can properly be replaced 
+	 * later).
+	 * 
+	 * @param  NewMetaClass    The MetaClass you want this property set with.
+	 */
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	void SetMetaClass(UClass* NewMetaClass);
+#else
+	FORCEINLINE void SetMetaClass(UClass* NewMetaClass) { MetaClass = NewMetaClass; }
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 };
 
 /*-----------------------------------------------------------------------------
@@ -2205,6 +2221,7 @@ public:
 	virtual void Serialize( FArchive& Ar ) override;
 	virtual void EmitReferenceInfo(UClass& OwnerClass, int32 BaseOffset) override;
 	virtual void BeginDestroy() override;
+	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// End of UObject interface
 
 	/**

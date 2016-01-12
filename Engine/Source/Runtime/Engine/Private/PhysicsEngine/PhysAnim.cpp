@@ -422,6 +422,8 @@ void USkeletalMeshComponent::PostBlendPhysics()
 {
 	FlipEditableSpaceBases();
 
+	UpdateComponentToWorld();
+
 	// Update Child Transform - The above function changes bone transform, so will need to update child transform
 	UpdateChildTransforms();
 
@@ -542,7 +544,7 @@ void USkeletalMeshComponent::UpdateKinematicBonesToAnim(const TArray<FTransform>
 				FBodyInstance* BodyInst = Bodies[i];
 				check(BodyInst);
 
-				if (bTeleport || (BodyInst->IsValidBodyInstance() && !BodyInst->IsInstanceSimulatingPhysics()))
+				if (BodyInst->IsValidBodyInstance() && (bTeleport || !BodyInst->IsInstanceSimulatingPhysics()))
 				{
 					const int32 BoneIndex = BodyInst->InstanceBoneIndex;
 

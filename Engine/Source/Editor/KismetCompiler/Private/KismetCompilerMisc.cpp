@@ -189,6 +189,32 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				const UClass* OutputClass = (Direction == EGPD_Output) ? ObjectType : ObjProperty->PropertyClass;
 				const UClass* InputClass = (Direction == EGPD_Output) ? ObjProperty->PropertyClass : ObjectType;
 
+				// Fixup stale types to avoid unwanted mismatches during the reinstancing process
+				if (OutputClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					UBlueprint* GeneratedByBP = Cast<UBlueprint>(OutputClass->ClassGeneratedBy);
+					if (GeneratedByBP != nullptr)
+					{
+						TSubclassOf<UObject> NewerClass = GeneratedByBP->GeneratedClass;
+						if (!NewerClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+						{
+							OutputClass = NewerClass;
+						}
+					}
+				}
+				if (InputClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+				{
+					UBlueprint* GeneratedByBP = Cast<UBlueprint>(InputClass->ClassGeneratedBy);
+					if (GeneratedByBP != nullptr)
+					{
+						TSubclassOf<UObject> NewerClass = GeneratedByBP->GeneratedClass;
+						if (!NewerClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+						{
+							InputClass = NewerClass;
+						}
+					}
+				}
+
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
 
@@ -841,7 +867,10 @@ UProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 			if (Type.PinCategory == Schema->PC_AssetClass)
 			{
 				auto AssetClassProperty = NewObject<UAssetClassProperty>(PropertyScope, ValidatedPropertyName, ObjectFlags);
-				AssetClassProperty->MetaClass = SubType;
+				// we want to use this setter function instead of setting the 
+				// MetaClass member directly, because it properly handles  
+				// placeholder classes (classes that are stubbed in during load)
+				AssetClassProperty->SetMetaClass(SubType);
 				NewProperty = AssetClassProperty;
 			}
 			else

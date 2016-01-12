@@ -99,10 +99,9 @@
 		} \
 		else \
 		{ \
-			/* Write the value to the JsonName field */ \
-			Serializer.StartObject(JsonName); \
+			/* Write the value to the Name field */ \
+			Serializer.WriteIdentifierPrefix(TEXT(JsonName)); \
 			JsonSerializableObject.Serialize(Serializer); \
-			Serializer.EndObject(); \
 		}
 
 /** Array of string data */
@@ -139,6 +138,7 @@ struct FOnlineJsonSerializerBase
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMap& Map) = 0;
 	virtual void SerializeMap(const TCHAR* Name, FJsonSerializableKeyValueMapInt& Map) = 0;
 	virtual TSharedPtr<FJsonObject> GetObject() = 0;
+	virtual void WriteIdentifierPrefix(const TCHAR* Name) = 0;
 };
 
 /**
@@ -353,6 +353,11 @@ public:
 			Serialize(*(KeyValueIt.Key()), KeyValueIt.Value());
 		}
 		JsonWriter->WriteObjectEnd();
+	}
+
+	virtual void WriteIdentifierPrefix(const TCHAR* Name)
+	{
+		JsonWriter->WriteIdentifierPrefix(Name);
 	}
 };
 
@@ -585,6 +590,12 @@ public:
 			}
 		}
 	}
+
+	virtual void WriteIdentifierPrefix(const TCHAR* Name)
+	{
+		// Should never be called on a reader
+		check(false);
+	}
 };
 
 /**
@@ -665,4 +676,3 @@ struct FOnlineJsonSerializable
 	 */
 	virtual void Serialize(FOnlineJsonSerializerBase& Serializer) = 0;
 };
-

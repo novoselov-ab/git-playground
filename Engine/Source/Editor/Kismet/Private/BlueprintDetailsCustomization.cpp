@@ -192,9 +192,6 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 		return;
 	}
 
-	// Help in tracking UE-20390
-	UE_LOG(LogBlueprintUserMessages, Log, TEXT("CustomizeDetails for Blueprint '%s', cached variable property's owner is '%s'"), *GetBlueprintObj()->GetName(), *CachedVariableProperty->GetOwnerClass()->GetPathName());
-
 	CachedVariableName = GetVariableName();
 
 	TWeakPtr<FBlueprintEditor> BlueprintEditor = MyBlueprint.Pin()->GetBlueprintEditor();
@@ -717,16 +714,12 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 
 				IDetailPropertyRow* Row = DefaultValueCategory.AddExternalProperty(StructData, VariableProperty->GetFName());
 			}
-			else if (GetPropertyOwnerBlueprint())
+			else
 			{
 				// Things are in order, show the property and allow it to be edited
 				TArray<UObject*> ObjectList;
-				ObjectList.Add(GetPropertyOwnerBlueprint()->GeneratedClass->GetDefaultObject());
+				ObjectList.Add(Blueprint->GeneratedClass->GetDefaultObject());
 				IDetailPropertyRow* Row = DefaultValueCategory.AddExternalProperty(ObjectList, VariableProperty->GetFName());
-				if (Row != nullptr)
-				{
-					Row->IsEnabled(IsVariableInBlueprint());
-				}
 			}
 		}
 
@@ -1836,12 +1829,6 @@ void FBlueprintVarActionDetails::OnPostEditorRefresh()
 {
 	CachedVariableProperty = SelectionAsProperty();
 	CachedVariableName = GetVariableName();
-
-	// Help in tracking UE-20390
-	if (CachedVariableProperty.IsValid())
-	{
-		UE_LOG(LogBlueprintUserMessages, Log, TEXT("PostEditorRefresh for Blueprint '%s', cached variable property's owner is '%s'"), *GetBlueprintObj()->GetName(), *CachedVariableProperty->GetOwnerClass()->GetPathName());
-	}
 }
 
 EVisibility FBlueprintVarActionDetails::GetTransientVisibility() const
@@ -3364,6 +3351,12 @@ bool FBaseBlueprintGraphActionDetails::OnVerifyPinRename(UK2Node_EditablePinBase
 	if(InOldName == InNewName)
 	{
 		return true;
+	}
+
+	if( InNewName.Len() > NAME_SIZE )
+	{
+		OutErrorMessage = FText::Format( LOCTEXT("PinNameTooLong", "The name you entered is too long. Names must be less than {0} characters"), FText::AsNumber( NAME_SIZE ) );
+		return false;
 	}
 
 	if (InTargetNode)

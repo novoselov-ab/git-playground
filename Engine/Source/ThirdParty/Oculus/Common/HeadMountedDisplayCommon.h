@@ -77,6 +77,9 @@ public:
 			/** Whether world-to-meters scale is overriden or not. */
 			uint64 bWorldToMetersOverride : 1;
 
+			/** Whether camera scale is overriden or not. */
+			uint64 bCameraScale3DOverride : 1;
+
 			/** Distortion on/off */
 			uint64 bHmdDistortion : 1;
 
@@ -171,6 +174,12 @@ public:
 	/** Optional far clipping plane for projection matrix */
 	float FarClippingPlane;
 
+	/** Scale the camera positional movement */
+	FVector		CameraScale3D;
+
+	/** Scale the positional movement */
+	FVector		PositionScale3D;
+
 	/** Size of mirror window; {0,0} if size is the default one */
 	FIntPoint	MirrorWindowSize;
 
@@ -202,7 +211,7 @@ public:
 class FHMDGameFrame : public TSharedFromThis<FHMDGameFrame, ESPMode::ThreadSafe>
 {
 public:
-	uint32					FrameNumber; // current frame number.
+	uint64					FrameNumber; // current frame number.
 	TSharedPtr<FHMDSettings, ESPMode::ThreadSafe>	Settings;
 
 	/** World units (UU) to Meters scale.  Read from the level, and used to transform positional tracking data */
@@ -318,6 +327,7 @@ public:
 	virtual bool DoesSupportPositionalTracking() const override;
 	virtual bool HasValidTrackingPosition() override;
 	virtual void GetPositionalTrackingCameraProperties(FVector& OutOrigin, FQuat& OutOrientation, float& OutHFOV, float& OutVFOV, float& OutCameraDistance, float& OutNearPlane, float& OutFarPlane) const override;
+	virtual void RebaseObjectOrientationAndPosition(FVector& OutPosition, FQuat& OutOrientation) const override;
 
 	virtual bool IsInLowPersistenceMode() const override;
 	virtual void EnableLowPersistenceMode(bool Enable = true) override;
@@ -345,6 +355,9 @@ public:
 
 	virtual void SetBaseOrientation(const FQuat& BaseOrient) override;
 	virtual FQuat GetBaseOrientation() const override;
+
+	virtual void SetPositionScale3D(FVector PosScale3D);
+	virtual FVector GetPositionScale3D() const;
 
 	// Returns true, if HMD is currently active
 	virtual bool IsHMDActive() { return IsHMDConnected(); }

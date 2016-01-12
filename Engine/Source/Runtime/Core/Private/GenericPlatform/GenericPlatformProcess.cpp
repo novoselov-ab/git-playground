@@ -132,7 +132,7 @@ const FString FGenericPlatformProcess::ShaderWorkingDir()
 void FGenericPlatformProcess::CleanShaderWorkingDir()
 {
 	// Path to the working directory where files are written for multi-threaded compilation
-	FString ShaderWorkingDirectory = ShaderWorkingDir();
+	FString ShaderWorkingDirectory =  FPlatformProcess::ShaderWorkingDir();
 	IFileManager::Get().DeleteDirectory(*ShaderWorkingDirectory, false, true);
 
 	FString LegacyShaderWorkingDirectory = FPaths::GameIntermediateDir() / TEXT("Shaders/WorkingDirectory/");
@@ -514,4 +514,9 @@ bool FGenericPlatformProcess::Daemonize()
 {
 	UE_LOG(LogHAL, Fatal, TEXT("FGenericPlatformProcess::Daemonize not implemented on this platform"));
 	return false;
+}
+
+FSystemWideCriticalSectionNotImplemented::FSystemWideCriticalSectionNotImplemented(const FString& Name, FTimespan Timeout)
+{
+	UE_LOG(LogHAL, Fatal, TEXT("FSystemWideCriticalSection not implemented on this platform"));
 }

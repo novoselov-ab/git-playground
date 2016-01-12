@@ -1029,7 +1029,7 @@ namespace Rocket
 			BuildDerivedDataCacheNode DerivedDataCacheNode = (BuildDerivedDataCacheNode)BranchConfig.FindNode(BuildDerivedDataCacheNode.StaticGetFullName(HostPlatform));
 			CopyManifestFilesToOutput(DerivedDataCacheNode.SavedManifestPath, DerivedDataCacheNode.SavedDir, OutputDir);
 
-			// Write the Rocket.txt file with the 
+			// Write the Rocket.txt file with the editor arguments
 			string RocketFile = CommandUtils.CombinePaths(OutputDir, "Engine/Build/Rocket.txt");
 			CommandUtils.WriteAllText(RocketFile, "-installedengine -rocket");
 

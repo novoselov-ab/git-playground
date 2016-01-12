@@ -254,6 +254,9 @@ bool UPlayerInput::InputTouch(uint32 Handle, ETouchType::Type Type, const FVecto
 		break;
 	}
 
+	// store current touch location paired with event id
+	TouchEventLocations.Add(EventCount, Touches[Handle]);
+
 	// accumulate deltas until processed next
 	KeyState.SampleCountAccumulator++;
 	KeyState.RawValueAccumulator = KeyState.Value = KeyState.RawValue = FVector(TouchLocation.X, TouchLocation.Y, 0);
@@ -669,11 +672,11 @@ void UPlayerInput::GetChordsForAction(const FInputActionBinding& ActionBinding, 
 			{
 				for (auto KeyStateIt(KeyStateMap.CreateConstIterator()); KeyStateIt; ++KeyStateIt)
 				{
-					if (!KeyStateIt.Key().IsFloatAxis() && !KeyStateIt.Key().IsVectorAxis())
+					if (!KeyStateIt.Key().IsFloatAxis() && !KeyStateIt.Key().IsVectorAxis() && !IsKeyConsumed(KeyStateIt.Key()))
 					{
 						FInputActionKeyMapping SubKeyMapping(KeyMapping);
 						SubKeyMapping.Key = KeyStateIt.Key();
-						GetChordsForKeyMapping(KeyMapping, ActionBinding, bGamePaused, FoundChords, KeysToConsume);
+						GetChordsForKeyMapping(SubKeyMapping, ActionBinding, bGamePaused, FoundChords, KeysToConsume);
 					}
 				}
 			}
@@ -693,7 +696,7 @@ void UPlayerInput::GetChordForKey(const FInputKeyBinding& KeyBinding, const bool
 	{
 		for (auto KeyStateIt(KeyStateMap.CreateConstIterator()); KeyStateIt; ++KeyStateIt)
 		{
-			if (!KeyStateIt.Key().IsFloatAxis() && !KeyStateIt.Key().IsVectorAxis())
+			if (!KeyStateIt.Key().IsFloatAxis() && !KeyStateIt.Key().IsVectorAxis() && !IsKeyConsumed(KeyStateIt.Key()))
 			{
 				FInputKeyBinding SubKeyBinding(KeyBinding);
 				SubKeyBinding.Chord.Key = KeyStateIt.Key();
@@ -970,11 +973,12 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 						if (TB.bExecuteWhenPaused || !bGamePaused)
 						{
 							check(EventIndices.Num() > 0);
-							FDelegateDispatchDetails TouchInfo(EventIndices[0], NonAxisDelegates.Num(), TB.TouchDelegate, Touches[TouchIndex], TouchIndex);
+							FDelegateDispatchDetails TouchInfo(EventIndices[0], NonAxisDelegates.Num(), TB.TouchDelegate, TouchEventLocations[EventIndices[0]], TouchIndex);
 							NonAxisDelegates.Add(TouchInfo);
 							for (int32 EventsIndex = 1; EventsIndex < EventIndices.Num(); ++EventsIndex)
 							{
 								TouchInfo.EventIndex = EventIndices[EventsIndex];
+								TouchInfo.TouchLocation = TouchEventLocations[TouchInfo.EventIndex];
 								NonAxisDelegates.Add(TouchInfo);
 							}
 						}
@@ -1140,6 +1144,7 @@ void UPlayerInput::ProcessInputStack(const TArray<UInputComponent*>& InputCompon
 	PlayerController->PostProcessInput(DeltaTime, bGamePaused);
 
 	FinishProcessingPlayerInput();
+	TouchEventLocations.Reset();
 }
 
 void UPlayerInput::DiscardPlayerInput()
@@ -1552,7 +1557,7 @@ bool UPlayerInput::IsKeyHandledByAction( FKey Key ) const
 {
 	for (const FInputActionKeyMapping& Mapping : ActionMappings)
 	{
-		if( Mapping.Key == Key && 
+		if( (Mapping.Key == Key || Mapping.Key == EKeys::AnyKey) && 
 			(Mapping.bAlt == false || IsAltPressed()) &&
 			(Mapping.bCtrl == false || IsCtrlPressed()) &&
 			(Mapping.bShift == false || IsShiftPressed()) &&

@@ -72,15 +72,12 @@ namespace iPhonePackager
 		{
 			string CmdLine = XcodeDeveloperDir + "usr/bin/xcodebuild" +
 					" -project UE4_FromPC.xcodeproj" + 
-					" -configuration " + Program.GameConfiguration +
-					" -target '" + Program.GameName + " - iOS'" +
+					" -configuration \"" + Program.SchemeConfiguration + "\"" +
+					" -target '" + Program.SchemeName + "'" +
+					" -destination generic/platform=iOS" +
 					" -sdk " + ((Program.Architecture == "-simulator") ? "iphonesimulator" : "iphoneos");
 
 			// sign with the Distribution identity when packaging for distribution
-			if (!Config.bForDistribution)
-			{
-				CmdLine += String.Format(" CODE_SIGN_RESOURCE_RULES_PATH='{0}/CustomResourceRules.plist'", MacStagingRootDir);
-			}
 			if (Config.bUseRPCUtil)
 			{
 				CmdLine += String.Format(" CODE_SIGN_IDENTITY=\\\"{0}\\\"", Config.CodeSigningIdentity);
@@ -239,13 +236,6 @@ namespace iPhonePackager
 					Config.bForDistribution ? "false" : "true"));
 			}
 			
-			
-			// Copy the no sign resource rules file over
-			if (!Config.bForDistribution)
-			{
-				FileOperations.CopyRequiredFile(@"..\..\..\Build\IOS\XcodeSupportFiles\CustomResourceRules.plist", Path.Combine(Config.PCStagingRootDir, "CustomResourceRules.plist"));
-			}
-
 			// Copy the mobile provision file over
 			string CFBundleIdentifier = null;
 			Info.GetString("CFBundleIdentifier", out CFBundleIdentifier);
@@ -272,10 +262,10 @@ namespace iPhonePackager
 			// make sure this .mobileprovision file is newer than any other .mobileprovision file on the Mac (this file gets multiple games named the same file, 
 			// so the time stamp checking can fail when moving between games, a la the buildmachines!)
 			File.SetLastWriteTime(FinalMobileProvisionFilename, DateTime.UtcNow);
-			string ProjectFile = Config.RootRelativePath + @"Engine\Intermediate\IOS\UE4.xcodeproj\project.pbxproj";
+			string ProjectFile = Config.RootRelativePath + @"Engine\Intermediate\ProjectFiles\UE4.xcodeproj\project.pbxproj";
 			if (Program.GameName != "UE4Game")
 			{
-				ProjectFile = Config.IntermediateDirectory + @"\" + Program.GameName + @".xcodeproj\project.pbxproj";
+				ProjectFile = Path.GetDirectoryName(Config.IntermediateDirectory) + @"\ProjectFiles\" + Program.GameName + @".xcodeproj\project.pbxproj";
 			}
 			FileOperations.CopyRequiredFile(ProjectFile, Path.Combine(Config.PCXcodeStagingDir, @"project.pbxproj.datecheck"));
 			
@@ -408,7 +398,7 @@ namespace iPhonePackager
 
 			case "strip":
 				Program.Log( " ... stripping" );
-				DisplayCommandLine = XcodeDeveloperDir + "Platforms/iPhoneOS.platform/Developer/usr/bin/strip '" + RemoteExecutablePath + "'";
+				DisplayCommandLine = "/usr/bin/xcrun strip '" + RemoteExecutablePath + "'";
 				CommandLine = "\"" + MacStagingRootDir + "\" " + DisplayCommandLine;
 				WorkingFolder = "\"" + MacStagingRootDir + "\"";
 				break;

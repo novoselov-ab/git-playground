@@ -32,6 +32,7 @@ class ANavMeshBoundsVolume;
 class FNavDataGenerator;
 class AWorldSettings;
 struct FNavigationRelevantData;
+class UNavigationSystem;
 #if WITH_EDITOR
 class FEdMode;
 #endif // WITH_EDITOR
@@ -43,6 +44,8 @@ DECLARE_MULTICAST_DELEGATE_OneParam(FOnNavAreaChanged, const UClass* /*AreaClass
 
 /** Delegate to let interested parties know that Nav Data has been registered */
 DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNavDataGenerigEvent, ANavigationData*, NavData);
+
+DECLARE_MULTICAST_DELEGATE(FOnNavigationInitDone);
 
 namespace NavigationDebugDrawing
 {
@@ -240,6 +243,8 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Transient, meta = (displayname = OnNavigationGenerationFinished))
 	FOnNavDataGenerigEvent OnNavigationGenerationFinishedDelegate;
+
+	FOnNavigationInitDone OnNavigationInitDone;
 	
 private:
 	TWeakObjectPtr<UCrowdManager> CrowdManager;
@@ -595,10 +600,15 @@ public:
 	static void UpdateNavOctree(AActor* Actor);
 	static void UpdateNavOctree(UActorComponent* Comp);
 	/** update all navoctree entries for actor and its components */
-	static void UpdateNavOctreeAll(AActor* Actor);
+	static void UpdateNavOctreeAll(AActor* Actor, bool bUpdateAttachedActors = true);
 	/** update all navoctree entries for actor and its non scene components after root movement */
 	static void UpdateNavOctreeAfterMove(USceneComponent* Comp);
 
+protected:
+	/** updates navoctree information on actors attached to RootActor */
+	static void UpdateAttachedActorsInNavOctree(AActor& RootActor);
+
+public:
 	/** removes all navoctree entries for actor and its components */
 	static void ClearNavOctreeAll(AActor* Actor);
 	/** updates bounds of all components implementing INavRelevantInterface */

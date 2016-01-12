@@ -32,7 +32,7 @@ fi
 if [ -e /etc/os-release ]; then
   source /etc/os-release
   # Ubuntu/Debian/Mint
-  if [[ "$ID" == "ubuntu" ]] || [[ "$ID_LIKE" == "ubuntu" ]] || [[ "$ID" == "debian" ]] || [[ "$ID_LIKE" == "debian" ]]; then
+  if [[ "$ID" == "ubuntu" ]] || [[ "$ID_LIKE" == "ubuntu" ]] || [[ "$ID" == "debian" ]] || [[ "$ID_LIKE" == "debian" ]] || [[ "$ID" == "tanglu" ]] || [[ "$ID_LIKE" == "tanglu" ]]; then
     # Install the necessary dependencies (require clang-3.5, although 3.3 and 3.6 should work too for this release)
     DEPS="mono-xbuild \
       mono-dmcs \
@@ -161,6 +161,7 @@ CreateLinkIfNoneExists ../../Engine/shaders/Fxaa3_11.usf  ../Engine/Shaders/Fxaa
 echo Removing a stable libLND.so binary that was relocated in 4.8
 rm -f ../Engine/Binaries/Linux/libLND.so
 
+# We have to build libhlslcc locally due to apparent mismatch between system STL and cross-toolchain one
 echo
 pushd Build/BatchFiles/Linux > /dev/null
 ./BuildThirdParty.sh

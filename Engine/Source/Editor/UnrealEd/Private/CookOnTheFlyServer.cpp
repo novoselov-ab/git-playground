@@ -1402,18 +1402,27 @@ void UCookOnTheFlyServer::CleanUpChildCookers()
 		const FString MasterCookerStatsFilename = GetStatsFilename(FString());
 
 		FString AllStats;
-		ensure(FFileHelper::LoadFileToString(AllStats, *MasterCookerStatsFilename));
-		
+		if (FFileHelper::LoadFileToString(AllStats, *MasterCookerStatsFilename))
+		{
+			for (auto& ChildCooker : CookByTheBookOptions->ChildCookers)
+			{
+				check(ChildCooker.bFinished == true);
+				const FString ChildCookerStatsFilename = GetStatsFilename(ChildCooker.ResponseFileName);
+
+				FString ChildStats;
+				if (FFileHelper::LoadFileToString(ChildStats, *ChildCookerStatsFilename))
+				{
+					AllStats += ChildStats;
+				}
+			}
+		}
+
+		FFileHelper::SaveStringToFile(AllStats, *MasterCookerStatsFilename);
+
 		for (auto& ChildCooker : CookByTheBookOptions->ChildCookers)
 		{
 			check(ChildCooker.bFinished == true);
-			const FString ChildCookerStatsFilename = GetStatsFilename(ChildCooker.ResponseFileName);
-
-			FString ChildStats;
-			ensure(FFileHelper::LoadFileToString(ChildStats, *ChildCookerStatsFilename));
-
-			AllStats += ChildStats;
-
+		
 			if (ChildCooker.Thread != nullptr)
 			{
 				ChildCooker.Thread->WaitForCompletion();
@@ -1422,7 +1431,6 @@ void UCookOnTheFlyServer::CleanUpChildCookers()
 			}
 		}
 
-		ensure(FFileHelper::SaveStringToFile(AllStats, *MasterCookerStatsFilename));
 	}
 }
 
@@ -2443,7 +2451,7 @@ bool UCookOnTheFlyServer::SaveCookedPackage( UPackage* Package, uint32 SaveFlags
 		// Use SandboxFile to do path conversion to properly handle sandbox paths (outside of standard paths in particular).
 		Filename = ConvertToFullSandboxPath(*Filename, true);
 
-		uint32 OriginalPackageFlags = Package->PackageFlags;
+		uint32 OriginalPackageFlags = Package->GetPackageFlags();
 		UWorld* World = NULL;
 		EObjectFlags Flags = RF_NoFlags;
 		bool bPackageFullyLoaded = false;
@@ -2496,7 +2504,7 @@ bool UCookOnTheFlyServer::SaveCookedPackage( UPackage* Package, uint32 SaveFlags
 
 		if (bShouldCompressPackage)
 		{
-			Package->PackageFlags |= PKG_StoreCompressed;
+			Package->SetPackageFlags(PKG_StoreCompressed);
 		}
 
 		for (ITargetPlatform* Target : Platforms)
@@ -2558,11 +2566,11 @@ bool UCookOnTheFlyServer::SaveCookedPackage( UPackage* Package, uint32 SaveFlags
 
 				if (!Target->HasEditorOnlyData())
 				{
-					Package->PackageFlags |= PKG_FilterEditorOnly;
+					Package->SetPackageFlags(PKG_FilterEditorOnly);
 				}
 				else
 				{
-					Package->PackageFlags &= ~PKG_FilterEditorOnly;
+					Package->ClearPackageFlags(PKG_FilterEditorOnly);
 				}
 
 				// need to subtract 32 because the SavePackage code creates temporary files with longer file names then the one we provide
@@ -2595,7 +2603,7 @@ bool UCookOnTheFlyServer::SaveCookedPackage( UPackage* Package, uint32 SaveFlags
 			}
 		}
 
-		Package->PackageFlags = OriginalPackageFlags;
+		Package->SetPackageFlagsTo(OriginalPackageFlags);
 	}
 
 	check( bIsSavingPackage == true );
@@ -2849,7 +2857,7 @@ bool UCookOnTheFlyServer::GetCurrentIniVersionStrings( const ITargetPlatform* Ta
 	static const FCustomVersionContainer& CustomVersionContainer = FCustomVersionContainer::GetRegistered();
 	for (const auto& CustomVersion : CustomVersionContainer.GetAllVersions())
 	{
-		FString CustomVersionString = FString::Printf(TEXT("%s:%s:%d"), *CustomVersion.FriendlyName, *CustomVersion.Key.ToString(), CustomVersion.Version);
+		FString CustomVersionString = FString::Printf(TEXT("%s:%s:%d"), *CustomVersion.GetFriendlyName().ToString(), *CustomVersion.Key.ToString(), CustomVersion.Version);
 		IniVersionStrings.Emplace(MoveTemp(CustomVersionString));
 	}
 
@@ -4545,8 +4553,8 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 
 	if (bShouldMarkAsAlreadyProcessed)
 	{
-			Package->PackageFlags |= PKG_ReloadingForCooker;
-		}
+		Package->SetPackageFlags(PKG_ReloadingForCooker);
+	}
 
 
 	/*FString Name = Package->GetName();
@@ -4555,7 +4563,7 @@ void UCookOnTheFlyServer::MaybeMarkPackageAsAlreadyLoaded(UPackage *Package)
 	if (PackagesToNotReload.Contains(Name))
 	{
 		UE_LOG(LogCookCommandlet, Verbose, TEXT("Marking %s already loaded."), *Name);
-		Package->PackageFlags |= PKG_ReloadingForCooker;
+		Package->SetPackageFlags(PKG_ReloadingForCooker);
 	}*/
 }
 

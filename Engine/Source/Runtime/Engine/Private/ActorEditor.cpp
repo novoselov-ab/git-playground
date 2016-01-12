@@ -12,6 +12,8 @@
 
 #if WITH_EDITOR
 
+#include "Editor.h"
+
 #define LOCTEXT_NAMESPACE "ErrorChecking"
 
 void AActor::PreEditChange(UProperty* PropertyThatWillChange)
@@ -25,7 +27,8 @@ void AActor::PreEditChange(UProperty* PropertyThatWillChange)
 		BPGC->UnbindDynamicDelegatesForProperty(this, ObjProp);
 	}
 
-	if ( ReregisterComponentsWhenModified() )
+	// During SIE, allow components to be unregistered here, and then reregistered and reconstructed in PostEditChangeProperty.
+	if (GEditor->bIsSimulatingInEditor || ReregisterComponentsWhenModified())
 	{
 		UnregisterAllComponents();
 	}
@@ -42,7 +45,9 @@ void AActor::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 	
 	const bool bTransformationChanged = (PropertyName == Name_RelativeLocation || PropertyName == Name_RelativeRotation || PropertyName == Name_RelativeScale3D);
 
-	if ( ReregisterComponentsWhenModified() )
+	// During SIE, allow components to reregistered and reconstructed in PostEditChangeProperty.
+	// This is essential as construction is deferred during spawning / duplication when in SIE.
+	if (GEditor->bIsSimulatingInEditor || ReregisterComponentsWhenModified())
 	{
 		// In the Undo case we have an annotation storing information about constructed components and we do not want
 		// to improperly apply out of date changes so we need to skip registration of all blueprint created components
@@ -161,22 +166,22 @@ void AActor::PostEditMove(bool bFinished)
 		// update actor and all its components in navigation system after finishing move
 		// USceneComponent::UpdateNavigationData works only in game world
 		UNavigationSystem::UpdateNavOctreeBounds(this);
-		UNavigationSystem::UpdateNavOctreeAll(this);
 
 		TArray<AActor*> ParentedActors;
 		GetAttachedActors(ParentedActors);
-
 		for (int32 Idx = 0; Idx < ParentedActors.Num(); Idx++)
 		{
 			UNavigationSystem::UpdateNavOctreeBounds(ParentedActors[Idx]);
-			UNavigationSystem::UpdateNavOctreeAll(ParentedActors[Idx]);
 		}
+
+		// not doing manual update of all attached actors since UpdateNavOctreeAll should take care of it
+		UNavigationSystem::UpdateNavOctreeAll(this);
 	}
 }
 
 bool AActor::ReregisterComponentsWhenModified() const
 {
-	return !IsTemplate() && ( GetOutermost()->PackageFlags & PKG_PlayInEditor ) == 0 && GetWorld() != nullptr;
+	return !IsTemplate() && !GetOutermost()->HasAnyPackageFlags(PKG_PlayInEditor) && GetWorld() != nullptr;
 }
 
 void AActor::DebugShowComponentHierarchy(  const TCHAR* Info, bool bShowPosition )
@@ -331,6 +336,15 @@ TSharedPtr<ITransactionObjectAnnotation> AActor::GetTransactionAnnotation() cons
 
 void AActor::PreEditUndo()
 {
+	// Check if this Actor needs to be re-instanced
+	UClass* OldClass = GetClass();
+	UClass* NewClass = OldClass->GetAuthoritativeClass();
+	if (NewClass != OldClass)
+	{
+		// Empty the OwnedComponents array, it's filled with invalid information
+		OwnedComponents.Empty();
+	}
+
 	// Since child actor components will rebuild themselves get rid of the Actor before we make changes
 	TInlineComponentArray<UChildActorComponent*> ChildActorComponents;
 	GetComponents(ChildActorComponents);
@@ -351,6 +365,20 @@ void AActor::PreEditUndo()
 
 void AActor::PostEditUndo()
 {
+	// Check if this Actor needs to be re-instanced
+	UClass* OldClass = GetClass();
+	if (OldClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+	{
+		UClass* NewClass = OldClass->GetAuthoritativeClass();
+		if (!ensure(NewClass != OldClass))
+		{
+			UE_LOG(LogActor, Warning, TEXT("WARNING: %s is out of date and is the same as its AuthoritativeClass during PostEditUndo!"), *OldClass->GetName());
+		};
+
+		// Early exit, letting anything more occur would be invalid due to the REINST_ class
+		return;
+	}
+
 	// Notify LevelBounds actor that level bounding box might be changed
 	if (!IsTemplate())
 	{
@@ -375,6 +403,21 @@ void AActor::PostEditUndo()
 void AActor::PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)
 {
 	CurrentTransactionAnnotation = StaticCastSharedPtr<FActorTransactionAnnotation>(TransactionAnnotation);
+
+	// Check if this Actor needs to be re-instanced
+	UClass* OldClass = GetClass();
+	if (OldClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+	{
+		UClass* NewClass = OldClass->GetAuthoritativeClass();
+		if (!ensure(NewClass != OldClass))
+		{
+			UE_LOG(LogActor, Warning, TEXT("WARNING: %s is out of date and is the same as its AuthoritativeClass during PostEditUndo!"), *OldClass->GetName());
+		};
+
+		// Early exit, letting anything more occur would be invalid due to the REINST_ class
+		return;
+	}
+
 
 	// Notify LevelBounds actor that level bounding box might be changed
 	if (!IsTemplate())

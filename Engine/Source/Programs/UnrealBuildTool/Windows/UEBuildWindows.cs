@@ -1,4 +1,4 @@
-﻿// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 using System;
 using System.Collections.Generic;
@@ -58,20 +58,31 @@ namespace UnrealBuildTool
 				}
 
 				// Second, default based on what's installed, from newest to oldest
-				// @todo UWP: Currently we default to VS 2013, even if VS 2015 is installed, until the engine is fully updated to
-				// support compiling with VS 2015.  You can override this with the "-2015" command-line switch.
-// 				else if (!String.IsNullOrEmpty(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2015)))
-// 				{
-// 					CachedCompiler = WindowsCompiler.VisualStudio2015;
-// 				}
-				else if (!String.IsNullOrEmpty(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2013)))
+ 				else if (!Utils.IsRunningOnMono && !String.IsNullOrEmpty(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2015)))
+ 				{
+					CachedCompiler = WindowsCompiler.VisualStudio2015;
+
+					// Check that the Visual C++ toolchain is installed
+					string CompilerExe = Path.Combine(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2015), "../../VC/bin/cl.exe");
+					if (!File.Exists(CompilerExe))
+					{
+						Log.TraceWarning("Visual C++ 2015 toolchain does not appear to be correctly installed. Please verify that \"Common Tools for Visual C++ 2015\" was selected when installing Visual Studio 2015.");
+						// Check if 2013 is installed and fall back to it if possible, if that doesn't work we'll leave the setting on 2015 and defer the error to be picked up later
+						if (!String.IsNullOrEmpty(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2013)))
+						{
+							Log.TraceWarning("Using Visual Studio 2013 toolchain instead of Visual Studio 2015 toolchain.");
+							CachedCompiler = WindowsCompiler.VisualStudio2013;
+						}
+					}
+				}
+				else if (!Utils.IsRunningOnMono && !String.IsNullOrEmpty(WindowsPlatform.GetVSComnToolsPath(WindowsCompiler.VisualStudio2013)))
 				{
 					CachedCompiler = WindowsCompiler.VisualStudio2013;
 				}
 				else
 				{
-					// Finally assume 2013 is installed to defer errors somewhere else like VCToolChain
-					CachedCompiler = WindowsCompiler.VisualStudio2013;
+					// Finally assume 2015 (and 2013 on non-Windows platforms) is installed to defer errors somewhere else like VCToolChain
+					CachedCompiler = Utils.IsRunningOnMono ? WindowsCompiler.VisualStudio2013 : WindowsCompiler.VisualStudio2015;
 				}
 
 				return CachedCompiler.Value;
@@ -577,7 +588,8 @@ namespace UnrealBuildTool
 			InBuildTarget.GlobalCompileEnvironment.Config.Definitions.Add("PLATFORM_WINDOWS=1");
 
             String MorpheusShaderPath = Path.Combine(BuildConfiguration.RelativeEnginePath, "Shaders/PS4/PostProcessHMDMorpheus.usf");
-            if (File.Exists(MorpheusShaderPath))
+            //@todo: VS2015 currently does not have support for Morpheus
+            if (File.Exists(MorpheusShaderPath) && WindowsPlatform.Compiler != WindowsCompiler.VisualStudio2015)
             {
                 InBuildTarget.GlobalCompileEnvironment.Config.Definitions.Add("HAS_MORPHEUS=1");                
 

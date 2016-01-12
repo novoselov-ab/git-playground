@@ -12,7 +12,7 @@ class UMovieSceneTrack;
  * A set of tracks bound to runtime objects
  */
 USTRUCT()
-struct FMovieSceneBinding
+struct MOVIESCENE_API FMovieSceneBinding
 {
 	GENERATED_USTRUCT_BODY()
 
@@ -49,12 +49,30 @@ struct FMovieSceneBinding
 	TRange<float> GetTimeRange() const;
 
 	/**
+	* Set the object guid
+	*
+	* @param InObjectGuid
+	*/
+	void SetObjectGuid(const FGuid& InObjectGuid)
+	{
+		ObjectGuid = InObjectGuid;
+	}
+
+	/**
 	 * @return The guid of runtime objects in this binding
 	 */
 	const FGuid& GetObjectGuid() const
 	{
 		return ObjectGuid;
 	}
+
+	/**
+	 * Set display name of the binding
+	 */
+	void SetName(const FString& InBindingName)
+	{
+		BindingName = InBindingName;
+	} 
 
 	/**
 	 * @return The display name of the binding

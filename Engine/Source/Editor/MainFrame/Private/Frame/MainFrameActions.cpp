@@ -293,6 +293,28 @@ const TCHAR* GetUATCompilationFlags()
 		: TEXT("-nocompileeditor");
 }
 
+FString GetCookingOptionalParams()
+{
+	FString OptionalParams;
+	const UProjectPackagingSettings* const PackagingSettings = GetDefault<UProjectPackagingSettings>();
+	if (PackagingSettings->bCookAll)
+	{
+		OptionalParams += TEXT(" -CookAll");
+		// maps only flag only affects cook all
+		if (PackagingSettings->bCookMapsOnly)
+		{
+			OptionalParams += TEXT(" -CookMapsOnly");
+		}
+	}
+
+	/*if (PackagingSettings->bSkipEditorContent)
+	{
+		OptionalParams += TEXT(" -SKIPEDITORCONTENT");
+	}*/
+	return OptionalParams;
+}
+
+
 void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 {
 	const PlatformInfo::FPlatformInfo* const PlatformInfo = PlatformInfo::FindPlatformInfo(InPlatformInfoName);
@@ -323,6 +345,8 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 		OptionalParams += TEXT(" -targetplatform=");
 		OptionalParams += *PlatformInfo->TargetPlatformName.ToString();
 	}
+
+	OptionalParams += GetCookingOptionalParams();
 
 	const bool bRunningDebug = FParse::Param(FCommandLine::Get(), TEXT("debug"));
 
@@ -504,15 +528,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -compressed");
 	}
 
-	if ( PackagingSettings->bCookAll )
-	{
-		OptionalParams += TEXT(" -CookAll");
-		// maps only flag only affects cook all
-		if ( PackagingSettings->bCookMapsOnly )
-		{
-			OptionalParams += TEXT(" -CookMapsOnly");
-		}
-	}
+	OptionalParams += GetCookingOptionalParams();
 
 	if (PackagingSettings->UsePakFile)
 	{
@@ -568,10 +584,10 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 		OptionalParams += TEXT(" -build");
 	}
 
-	// we can include the crash reporter for any non-code projects or internal builds (we don't have the symbols to interpret external builds of code-based projects)
-	if (PackagingSettings->IncludeCrashReporter && (!bProjectHasCode || FEngineBuildSettings::IsInternalBuild()) && bTargetPlatformCanUseCrashReporter)
+	// Whether to include the crash reporter.
+	if (PackagingSettings->IncludeCrashReporter && bTargetPlatformCanUseCrashReporter)
 	{
-		OptionalParams += TEXT(" -CrashReporter");
+		OptionalParams += TEXT( " -CrashReporter" );
 	}
 
 	if (PackagingSettings->bBuildHttpChunkInstallData)
@@ -586,9 +602,9 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	{
 		FString NewExeName = ExecutableName.Left(ExecutableName.Len() - 4) + "-Cmd.exe";
 		if (FPaths::FileExists(NewExeName))
-		{
+	{
 			ExecutableName = NewExeName;
-		}
+	}
 	}
 #endif
 

@@ -550,6 +550,7 @@ void FDeferredShadingSceneRenderer::RenderLights(FRHICommandListImmediate& RHICm
 		bool bDirectLighting = ViewFamily.EngineShowFlags.DirectLighting;
 
 //START:GWGLUE
+		// NOTE: Can remove?
 		bool bFirstShadowDrawn = false;
 //END:GWGLUE
 

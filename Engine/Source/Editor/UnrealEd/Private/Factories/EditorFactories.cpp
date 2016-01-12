@@ -98,6 +98,7 @@
 #include "Engine/UserDefinedEnum.h"
 #include "Engine/UserDefinedStruct.h"
 #include "GameFramework/ForceFeedbackEffect.h"
+#include "GameFramework/HapticFeedbackEffect.h"
 #include "Engine/SubsurfaceProfile.h"
 #include "Camera/CameraAnim.h"
 #include "GameFramework/TouchInterface.h"
@@ -552,6 +553,11 @@ UObject* ULevelFactory::FactoryCreateText
 						SpawnInfo.Name = ActorUniqueName;
 						SpawnInfo.Template = Archetype;
 						SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
+						if (GEditor->bIsSimulatingInEditor)
+						{
+							// During SIE, we don't want to run construction scripts on a BP until it is completely constructed
+							SpawnInfo.bDeferConstruction = true;
+						}
 						AActor* NewActor = World->SpawnActor( TempClass, nullptr, nullptr, SpawnInfo );
 						
 						if( NewActor )
@@ -4006,6 +4012,12 @@ UTexture* UTextureFactory::ImportTexture(UClass* Class, UObject* InParent, FName
 			return nullptr;
 		}
 
+		if (NumMips > MAX_TEXTURE_MIP_COUNT)
+		{
+			Warn->Logf(ELogVerbosity::Error, TEXT("DDS file contains an unsupported number of mipmap levels."));
+			return nullptr;
+		}
+
 		// create the cube texture
 		UTextureCube* TextureCube = CreateTextureCube( InParent, Name, Flags );
 
@@ -7109,6 +7121,24 @@ UForceFeedbackEffectFactory::UForceFeedbackEffectFactory(const FObjectInitialize
 UObject* UForceFeedbackEffectFactory::FactoryCreateNew( UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn )
 {
 	return NewObject<UForceFeedbackEffect>(InParent, InName, Flags);
+}
+
+/*-----------------------------------------------------------------------------
+	UHapticFeedbackEffectFactory implementation.
+-----------------------------------------------------------------------------*/
+UHapticFeedbackEffectFactory::UHapticFeedbackEffectFactory(const FObjectInitializer& ObjectInitializer)
+: Super(ObjectInitializer)
+{
+
+	SupportedClass = UHapticFeedbackEffect::StaticClass();
+	bCreateNew = true;
+	bEditorImport = false;
+	bEditAfterNew = true;
+}
+
+UObject* UHapticFeedbackEffectFactory::FactoryCreateNew(UClass* InClass, UObject* InParent, FName InName, EObjectFlags Flags, UObject* Context, FFeedbackContext* Warn)
+{
+	return NewObject<UHapticFeedbackEffect>(InParent, InName, Flags);
 }
 
 /*-----------------------------------------------------------------------------

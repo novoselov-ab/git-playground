@@ -1,6 +1,7 @@
 // Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
 
 #include "CorePrivatePCH.h"
+#include "AndroidInputInterface.h"
 #include "AndroidApplication.h"
 #include <android/log.h>
 #include <cpu-features.h>
@@ -11,6 +12,8 @@
 #include "AndroidPlatformCrashContext.h"
 #include "PlatformMallocCrash.h"
 #include "AndroidJavaMessageBox.h"
+
+#include <android_native_app_glue.h>
 
 DECLARE_LOG_CATEGORY_EXTERN(LogEngine, Log, All);
 
@@ -104,12 +107,107 @@ void FAndroidMisc::PlatformPreInit()
 	FAndroidAppEntry::PlatformInit();
 }
 
+static volatile bool HeadPhonesArePluggedIn = false;
+
+static FAndroidMisc::FBatteryState CurrentBatteryState;
+
+static FCriticalSection ReceiversLock;
+static struct  
+{
+	int		Volume;
+	double	TimeOfChange;
+} CurrentVolume;
+
+extern "C"
+{
+
+	JNIEXPORT void Java_com_epicgames_ue4_HeadsetReceiver_stateChanged(JNIEnv * jni, jclass clazz, jint state)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeHeadsetEvent(%i)"), state);
+		HeadPhonesArePluggedIn = (state == 1);
+	}
+
+	JNIEXPORT void Java_com_epicgames_ue4_VolumeReceiver_volumeChanged(JNIEnv * jni, jclass clazz, jint volume)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeVolumeEvent(%i)"), volume);
+		ReceiversLock.Lock();
+		CurrentVolume.Volume = volume;
+		CurrentVolume.TimeOfChange = FApp::GetCurrentTime();
+		ReceiversLock.Unlock();
+	}
+
+	JNIEXPORT void Java_com_epicgames_ue4_BatteryReceiver_dispatchEvent(JNIEnv * jni, jclass clazz, jint status, jint level, jint temperature)
+	{
+		FPlatformMisc::LowLevelOutputDebugStringf(TEXT("nativeBatteryEvent(stat = %i, lvl = %i, t = %3.2f)"), status, level, float(temperature)/10.f);
+
+		ReceiversLock.Lock();
+		FAndroidMisc::FBatteryState state;
+		state.State = (FAndroidMisc::EBatteryState)status;
+		state.Level = level;
+		state.Temperature = float(temperature)/10.f;
+		CurrentBatteryState = state;
+		ReceiversLock.Unlock();
+	}
+}
+
 void FAndroidMisc::PlatformInit()
 {
 	// Increase the maximum number of simultaneously open files
 	// Display Timer resolution.
 	// Get swap file info
 	// Display memory info
+
+	// Register natives to receive Volume, Battery, Headphones events
+	JNIEnv* JEnv = FAndroidApplication::GetJavaEnv();
+	if (nullptr != JEnv)
+	{
+		struct
+		{
+			const char*		ClazzName;
+			JNINativeMethod	Jnim;
+			jclass			Clazz;
+		} gMethods[] =
+		{
+			{ "com/epicgames/ue4/VolumeReceiver",  { "volumeChanged", "(I)V",  (void *)Java_com_epicgames_ue4_VolumeReceiver_volumeChanged } },
+			{ "com/epicgames/ue4/BatteryReceiver", { "dispatchEvent", "(III)V",(void *)Java_com_epicgames_ue4_BatteryReceiver_dispatchEvent } },
+			{ "com/epicgames/ue4/HeadsetReceiver", { "stateChanged",  "(I)V",  (void *)Java_com_epicgames_ue4_HeadsetReceiver_stateChanged } },
+		};
+		const int count = sizeof(gMethods) / sizeof(gMethods[0]);
+
+		for (int i = 0; i < count; i++)
+		{
+			gMethods[i].Clazz = FAndroidApplication::FindJavaClass(gMethods[i].ClazzName);
+			if (gMethods[i].Clazz == nullptr)
+			{
+				UE_LOG(LogEngine, Warning, TEXT("Can't find class for %s"), gMethods[i].ClazzName);
+				continue;
+			}
+			if (JNI_OK != JEnv->RegisterNatives(gMethods[i].Clazz, &gMethods[i].Jnim, 1))
+			{
+				UE_LOG(LogEngine, Warning, TEXT("RegisterNatives failed for %s on %s"), gMethods[i].ClazzName, gMethods[i].Jnim.name);
+			}
+			extern struct android_app* GNativeAndroidApp;
+			jmethodID methodId = JEnv->GetStaticMethodID(gMethods[i].Clazz, "startReceiver", "(Landroid/app/Activity;)V");
+			if (methodId != 0)
+			{
+				JEnv->CallStaticVoidMethod(gMethods[i].Clazz, methodId, GNativeAndroidApp->activity->clazz);
+			}
+			else
+			{
+				UE_LOG(LogEngine, Warning, TEXT("Can't find method startReceiver of class %s"), gMethods[i].ClazzName);
+			}
+		}
+	}
+}
+
+extern void AndroidThunkCpp_DismissSplashScreen();
+
+void FAndroidMisc::PlatformPostInit(bool ShowSplashScreen)
+{
+	if (!ShowSplashScreen)
+	{
+		AndroidThunkCpp_DismissSplashScreen();
+	}
 }
 
 void FAndroidMisc::GetEnvironmentVariable(const TCHAR* VariableName, TCHAR* Result, int32 ResultLength)
@@ -360,21 +458,50 @@ void DefaultCrashHandler(const FAndroidCrashContext& Context)
 	if (FPlatformAtomics::InterlockedCompareExchange(&bHasEntered, 1, 0) == 0)
 	{
 		const SIZE_T StackTraceSize = 65535;
-		ANSICHAR* StackTrace = (ANSICHAR*)FMemory::Malloc(StackTraceSize);
+		ANSICHAR StackTrace[StackTraceSize];
 		StackTrace[0] = 0;
 
 		// Walk the stack and dump it to the allocated memory.
 		FPlatformStackWalk::StackWalkAndDump(StackTrace, StackTraceSize, 0, Context.Context);
-		UE_LOG(LogEngine, Error, TEXT("%s"), ANSI_TO_TCHAR(StackTrace));
-		FMemory::Free(StackTrace);
+		UE_LOG(LogEngine, Error, TEXT("\n%s\n"), ANSI_TO_TCHAR(StackTrace));
 
-		GError->HandleError();
-		FPlatformMisc::RequestExit(true);
+		if (GLog)
+		{
+			GLog->SetCurrentThreadAsMasterThread();
+			GLog->Flush();
+		}
+		
+		if (GWarn)
+		{
+			GWarn->Flush();
+		}
 	}
 }
 
 /** Global pointer to crash handler */
 void (* GCrashHandlerPointer)(const FGenericCrashContext& Context) = NULL;
+
+const int32 TargetSignals[] = 
+{
+	SIGQUIT, // SIGQUIT is a user-initiated "crash".
+	SIGILL,
+	SIGFPE,
+	SIGBUS,
+	SIGSEGV,
+	SIGSYS
+};
+
+const int32 NumTargetSignals = ARRAY_COUNT(TargetSignals);
+
+struct sigaction PrevActions[NumTargetSignals];
+
+static void RestorePreviousSignalHandlers()
+{
+	for (int32 i = 0; i < NumTargetSignals; ++i)
+	{
+		sigaction(TargetSignals[i],	&PrevActions[i], NULL);
+	}
+}
 
 /** True system-specific crash handler that gets called first */
 void PlatformCrashHandler(int32 Signal, siginfo* Info, void* Context)
@@ -382,8 +509,12 @@ void PlatformCrashHandler(int32 Signal, siginfo* Info, void* Context)
 	// Switch to malloc crash.
 	//FGenericPlatformMallocCrash::Get().SetAsGMalloc(); @todo uncomment after verification
 
-	fprintf(stderr, "Signal %d caught.\n", Signal);
+	//fprintf(stderr, "Signal %d caught.\n", Signal);
+	FPlatformMisc::LowLevelOutputDebugStringf(TEXT("Signal %d caught!"), Signal);
 
+	// Restore system handlers so Android could catch this signal after we are done with crashreport
+	RestorePreviousSignalHandlers();
+	
 	FAndroidCrashContext CrashContext;
 	CrashContext.InitFromSignal(Signal, Info, Context);
 
@@ -402,17 +533,18 @@ void FAndroidMisc::SetCrashHandler(void (* CrashHandler)(const FGenericCrashCont
 {
 	GCrashHandlerPointer = CrashHandler;
 
+	FMemory::Memzero(&PrevActions, sizeof(PrevActions));
+
 	struct sigaction Action;
 	FMemory::Memzero(&Action, sizeof(struct sigaction));
 	Action.sa_sigaction = PlatformCrashHandler;
 	sigemptyset(&Action.sa_mask);
 	Action.sa_flags = SA_SIGINFO | SA_RESTART | SA_ONSTACK;
-	sigaction(SIGQUIT, &Action, NULL);	// SIGQUIT is a user-initiated "crash".
-	sigaction(SIGILL, &Action, NULL);
-	sigaction(SIGFPE, &Action, NULL);
-	sigaction(SIGBUS, &Action, NULL);
-	sigaction(SIGSEGV, &Action, NULL);
-	sigaction(SIGSYS, &Action, NULL);
+
+	for (int32 i = 0; i < NumTargetSignals; ++i)
+	{
+		sigaction(TargetSignals[i],	&Action, &PrevActions[i]);
+	}
 }
 
 bool FAndroidMisc::GetUseVirtualJoysticks()
@@ -730,6 +862,20 @@ void FAndroidMisc::SetVolumeButtonsHandledBySystem(bool enabled)
 	VolumeButtonsHandledBySystem = enabled;
 }
 
+void FAndroidMisc::ResetGamepadAssignments()
+{
+	FAndroidInputInterface::ResetGamepadAssignments();
+}
+
+void FAndroidMisc::ResetGamepadAssignmentToController(int32 ControllerId)
+{
+	FAndroidInputInterface::ResetGamepadAssignmentToController(ControllerId);
+}
+
+bool FAndroidMisc::IsControllerAssignedToGamepad(int32 ControllerId)
+{
+	return FAndroidInputInterface::IsControllerAssignedToGamepad(ControllerId);
+}
 
 int32 FAndroidMisc::GetAndroidBuildVersion()
 {
@@ -780,3 +926,31 @@ bool FAndroidMisc::IsDebuggerPresent()
 	return Result;
 }
 #endif
+
+int FAndroidMisc::GetVolumeState(double* OutTimeOfChangeInSec)
+{
+	int v;
+	ReceiversLock.Lock();
+	v = CurrentVolume.Volume;
+	if (OutTimeOfChangeInSec)
+	{
+		*OutTimeOfChangeInSec = CurrentVolume.TimeOfChange;
+	}
+	ReceiversLock.Unlock();
+	return v;
+}
+
+FAndroidMisc::FBatteryState FAndroidMisc::GetBatteryState()
+{
+	FBatteryState CurState;
+	ReceiversLock.Lock();
+	CurState = CurrentBatteryState;
+	ReceiversLock.Unlock();
+	return CurState;
+}
+
+bool FAndroidMisc::AreHeadPhonesPluggedIn()
+{
+	return HeadPhonesArePluggedIn;
+}
+

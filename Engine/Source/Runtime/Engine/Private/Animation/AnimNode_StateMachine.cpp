@@ -94,7 +94,16 @@ void FAnimationActiveTransitionEntry::Update(const FAnimationUpdateContext& Cont
 	{
 		ElapsedTime += Context.GetDeltaTime();
 		Blend.Update(Context.GetDeltaTime());
-		Alpha = FAlphaBlend::AlphaToBlendOption(ElapsedTime / CrossfadeDuration, Blend.BlendOption, Blend.CustomCurve); //Blend.GetBlendedValue();
+
+		float QueryAlpha = 1.0f;
+
+		// If non-zero, calculate the query alpha
+		if (CrossfadeDuration > 0.0f)
+		{
+			QueryAlpha = ElapsedTime / CrossfadeDuration;
+		}
+
+		Alpha = FAlphaBlend::AlphaToBlendOption(QueryAlpha, Blend.BlendOption, Blend.CustomCurve);
 
 		if(Blend.IsComplete())
 		{
@@ -637,12 +646,12 @@ void FAnimNode_StateMachine::EvaluateTransitionStandardBlend(FPoseContext& Outpu
 	// Blend it in
 	const ScalarRegister VPreviousWeight(1.0f - Transition.Alpha);
 	const ScalarRegister VWeight(Transition.Alpha);
-	for (FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
-	{
-		Output.Pose[BoneIndex] = PreviouseStateResult.Pose[BoneIndex] * VPreviousWeight;
-		Output.Pose[BoneIndex].AccumulateWithShortestRotation(NextStateResult.Pose[BoneIndex], VWeight);
-	}
-
+		for(FCompactPoseBoneIndex BoneIndex : Output.Pose.ForEachBoneIndex())
+		{
+			Output.Pose[BoneIndex] = PreviouseStateResult.Pose[BoneIndex] * VPreviousWeight;
+			Output.Pose[BoneIndex].AccumulateWithShortestRotation(NextStateResult.Pose[BoneIndex], VWeight);
+		}
+	
 	// blend curve in
 	Output.Curve.Override(PreviouseStateResult.Curve, 1.0-Transition.Alpha);
 	Output.Curve.Accumulate(NextStateResult.Curve, Transition.Alpha);
@@ -888,5 +897,14 @@ bool FAnimNode_StateMachine::IsAConduitState(int32 StateIndex) const
 bool FAnimNode_StateMachine::IsValidTransitionIndex(int32 TransitionIndex) const
 {
 	return PRIVATE_MachineDescription->Transitions.IsValidIndex(TransitionIndex);
+}
+
+FName FAnimNode_StateMachine::GetCurrentStateName() const
+{
+	if(PRIVATE_MachineDescription->States.IsValidIndex(CurrentState))
+	{
+		return GetStateInfo().StateName;
+	}
+	return NAME_None;
 }
 
