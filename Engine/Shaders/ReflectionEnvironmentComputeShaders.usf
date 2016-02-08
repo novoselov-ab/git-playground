@@ -625,6 +625,14 @@ void ReflectionEnvironmentTiledDeferredMain(
 	float Overlap = CountOverlap( WorldPosition );
 #endif
 
+	//START:GWGLUE
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		RWOutSceneColor[PixelPos.xy] = InSceneColor.Load( int3(PixelPos, 0) );
+		return;
+	}
+	//END:GWGLUE
+
 	BRANCH
 	if( GBuffer.ShadingModelID != SHADINGMODELID_UNLIT )
 	{

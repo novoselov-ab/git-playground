@@ -76,6 +76,13 @@ void MainPS(in float4 UVAndScreenPos : TEXCOORD0, float4 SVPos: SV_POSITION, out
 		return;
 	}
 
+	//START:GWGLUE
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		return;
+	}
+	//END:GWGLUE
+
 	// screen position in [-1, 1] screen space 
 	float2 ScreenSpacePos = UVAndScreenPos.zw;
 
@@ -160,6 +167,13 @@ void DirectionalOcclusionPS(in float4 UVAndScreenPos : TEXCOORD0, float4 SVPos: 
 
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(UV);  
 	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
+
+	//START:GWGLUE
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		return;
+	}
+	//END:GWGLUE
 
 	BRANCH if (GBuffer.ShadingModelID != SHADINGMODELID_UNLIT )
 	{

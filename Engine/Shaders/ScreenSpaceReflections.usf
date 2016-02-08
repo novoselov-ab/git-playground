@@ -107,6 +107,13 @@ void ScreenSpaceReflectionsPS(in float4 UVAndScreenPos : TEXCOORD0, out float4 O
 	float Roughness = GetRoughness(GBuffer);
 	float RoughnessFade = GetRoughnessFade(Roughness);
 
+	//START:GWGLUE
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		return;
+	}
+	//END:GWGLUE
+
 	// Early out. Useless if using the stencil prepass.
 	BRANCH if( RoughnessFade <= 0.0 || GBuffer.ShadingModelID == 0 )
 	{

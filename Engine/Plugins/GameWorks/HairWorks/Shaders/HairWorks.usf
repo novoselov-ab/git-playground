@@ -96,36 +96,29 @@ void Main(
 
 		FGBufferData GBuffer = (FGBufferData)0;
 
-		// Where do we get this from? shaderAttributes.N is not correct!
-		GBuffer.WorldNormal = shaderAttributes.N;
+		GBuffer.ShadingModelID = SHADINGMODELID_GFSDK_HAIR;
 
+		// hair tangent (this is the vector along the path of the hair ie – a tangent to the hair ‘normal’ – which there are an infinite amount of cos it’s a strand)
+		GBuffer.WorldNormal = shaderAttributes.T;
+
+		// surface normal (this is the normal of the surface of the hair at the scalp)
+		GBuffer.CustomData.xyz = GFSDK_Hair_EncodeHairTangent(shaderAttributes.N);
 
 		// Use hairColor for now - the other ones above are monkeyed with
 		GBuffer.BaseColor = hairColor;
 
-		float spec = HairConstantBuffer.defaultMaterial.specularPrimaryPower * HairConstantBuffer.defaultMaterial.specularPrimaryScale;
-		
-		// No idea what we should put here
-		GBuffer.Metallic = 0;
-		GBuffer.Specular = spec;
-		GBuffer.Roughness = 0.5;
-
-		// NO IDEA
-		GBuffer.IndirectIrradiance = 1;
-		
-		// Static lighting, don't care.
+		//float spec = HairConstantBuffer.defaultMaterial.specularPrimaryPower * HairConstantBuffer.defaultMaterial.specularPrimaryScale;
+		//GBuffer.Metallic = 0;
+		//GBuffer.Specular = spec;
+		//GBuffer.Roughness = 0.5;
+		//GBuffer.IndirectIrradiance = 1;
 		//GBuffer.PrecomputedShadowFactors = PrecomputedShadowFactors;
-
-		// No idea
-		GBuffer.GBufferAO = 1;
-		GBuffer.Opacity = 1;
+		//GBuffer.GBufferAO = 1;
+		//GBuffer.Opacity = 1;
 		
 		GBuffer.DecalMask = 0;
 		GBuffer.HasDistanceFieldRepresentation = 0; //Primitive.HasDistanceFieldRepresentation;
 		GBuffer.HasHeightfieldRepresentation = 0; //Primitive.HasHeightfieldRepresentation;
-
-		GBuffer.ShadingModelID = SHADINGMODELID_DEFAULT_LIT;
-
 
 		#if !ALLOW_STATIC_LIGHTING
 			float4 OutGBufferE = 0;
