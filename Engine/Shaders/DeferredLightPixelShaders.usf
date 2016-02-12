@@ -36,6 +36,21 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	return LightData;
 }
 
+//START:GWGLUE
+
+float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, half3 N_unused )
+{
+	float3 T = GBuffer.WorldNormal;
+	float3 N = GFSDK_Hair_DecodeHairTangent(GBuffer.CustomData.xyz);
+	T = normalize(T);
+	N = normalize(N);
+
+	// diffuse hair shading
+	float TdotL = clamp(dot( T , L), -1.0f, 1.0f);
+	float DiffuseHair = sqrt( 1.0f - TdotL*TdotL );
+	return DiffuseHair;
+}
+
 float4 GFSDK_Hair_GetDynamicLighting(float3 WorldPosition, float3 CameraVector, float2 InUV, FScreenSpaceData ScreenSpaceData, uint ShadingModelID, FDeferredLightData LightData, float4 LightAttenuation, uint2 Random)
 {
 	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
@@ -122,27 +137,44 @@ float4 GFSDK_Hair_GetDynamicLighting(float3 WorldPosition, float3 CameraVector, 
 		float SubsurfaceAttenuation	= (DistanceAttenuation * LightRadiusMask * SpotFalloff) * SubsurfaceShadow;
 
 		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms
-		
-		//
-		// simplified HairWorks shading model
-		//
-		float3 T = ScreenSpaceData.GBuffer.WorldNormal;
-		float3 N = GFSDK_Hair_DecodeHairTangent(ScreenSpaceData.GBuffer.CustomData.xyz);
-		T = normalize(T);
-		N = normalize(N);
 
-		// diffuse hair shading
-		float TdotL = clamp(dot( T , L), -1.0f, 1.0f);
-		float DiffuseHair = sqrt( 1.0f - TdotL*TdotL );
-		float3 SubsurfaceLighting = DiffuseHair;
+		{
+			const float3 LightColor = LightData.LightColorAndFalloffExponent.rgb;
 
-		const float3 LightColor = LightData.LightColorAndFalloffExponent.rgb;
+			const float ClearCoatRoughness	= ScreenSpaceData.GBuffer.CustomData.y;
 
-		LightAccumulator_Add(LightAccumulator, SubsurfaceLighting, 0, LightColor * SubsurfaceAttenuation);
+			float3 LobeRoughness = float3(ClearCoatRoughness, ScreenSpaceData.GBuffer.Roughness, 1);
+			float3 LobeEnergy = AreaLightSpecular(LightData, LobeRoughness, ToLight, L, V, N);
+
+			// accumulate diffuse and specular
+			{
+#if 1	// for testing if there is a perf impact
+				// correct screen space subsurface scattering
+				float3 SurfaceLightingDiff = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(1, 0));
+				float3 SurfaceLightingSpec = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(0, 1));
+				LightAccumulator_Add(LightAccumulator, SurfaceLightingDiff, SurfaceLightingSpec, LightColor * (NoL * SurfaceAttenuation));
+#else
+				// wrong screen space subsurface scattering but potentially faster
+				float3 SurfaceLighting = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(1, 1));
+				LightAccumulator_Add(LightAccumulator, SurfaceLighting, 0, LightColor * (NoL * SurfaceAttenuation));
+#endif
+			}
+
+			// accumulate subsurface
+			{
+				float3 SubsurfaceLighting = GFSDK_Hair_SubsurfaceShading(ScreenSpaceData.GBuffer, L, V, N);
+
+				LightAccumulator_Add(LightAccumulator, SubsurfaceLighting, 0, LightColor * SubsurfaceAttenuation);
+
+				LightAccumulator.EstimatedCost += 0.4f;		// add the cost of the lighting computations (should sum up to 1 form one light)
+			}
+		}
 	}
 
 	return LightAccumulator_GetResult(LightAccumulator);
 }
+
+//END:GWGLUE
 
 /** 
  * Pixel shader for rendering a directional light using a full screen quad. 
