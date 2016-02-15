@@ -36,146 +36,6 @@ FDeferredLightData SetupLightDataForStandardDeferred()
 	return LightData;
 }
 
-//START:GWGLUE
-
-float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, half3 N_unused )
-{
-	float3 T = GBuffer.WorldNormal;
-	float3 N = GFSDK_Hair_DecodeHairTangent(GBuffer.CustomData.xyz);
-	T = normalize(T);
-	N = normalize(N);
-
-	// diffuse hair shading
-	float TdotL = clamp(dot( T , L), -1.0f, 1.0f);
-	float DiffuseHair = sqrt( 1.0f - TdotL*TdotL );
-	return DiffuseHair;
-}
-
-float4 GFSDK_Hair_GetDynamicLighting(float3 WorldPosition, float3 CameraVector, float2 InUV, FScreenSpaceData ScreenSpaceData, uint ShadingModelID, FDeferredLightData LightData, float4 LightAttenuation, uint2 Random)
-{
-	FLightAccumulator LightAccumulator = (FLightAccumulator)0;
-
-	float3 V = -CameraVector;
-	float3 N = ScreenSpaceData.GBuffer.WorldNormal;
-	float3 ToLight = LightData.LightDirection;
-	float3 L = ToLight;	// no need to normalize
-	float NoL = saturate( dot(N, L) );
-	float DistanceAttenuation = 1;
-	float LightRadiusMask = 1;
-	float SpotFalloff = 1;
-
-	if (LightData.bRadialLight)
-	{
-		ToLight = LightData.LightPositionAndInvRadius.xyz - WorldPosition;
-		
-		float DistanceSqr = dot( ToLight, ToLight );
-		L = ToLight * rsqrt( DistanceSqr );
-
-		if (LightData.bInverseSquared)
-		{
-			const float SourceLength = LightData.SpotAnglesAndSourceRadius.w;
-
-			BRANCH
-			if( SourceLength > 0 )
-			{
-				// Line segment irradiance
-				float3 L01 = LightData.LightDirection * SourceLength;
-				float3 L0 = ToLight - 0.5 * L01;
-				float3 L1 = ToLight + 0.5 * L01;
-				float LengthL0 = length( L0 );
-				float LengthL1 = length( L1 );
-
-				DistanceAttenuation = rcp( ( LengthL0 * LengthL1 + dot( L0, L1 ) ) * 0.5 + 1 );
-				NoL = saturate( 0.5 * ( dot(N, L0) / LengthL0 + dot(N, L1) / LengthL1 ) );
-			}
-			else
-			{
-				// Sphere irradiance (technically just 1/d^2 but this avoids inf)
-				DistanceAttenuation = 1 / ( DistanceSqr + 1 );
-				NoL = saturate( dot( N, L ) );
-			}
-
-			// TODO optimize
-			LightRadiusMask = Square( saturate( 1 - Square( DistanceSqr * Square(LightData.LightPositionAndInvRadius.w) ) ) );
-		}
-		else
-		{
-			DistanceAttenuation = 1;
-			NoL = saturate( dot( N, L ) );
-			
-			LightRadiusMask = RadialAttenuation(ToLight * LightData.LightPositionAndInvRadius.w, LightData.LightColorAndFalloffExponent.w);	
-		}
-
-		if (LightData.bSpotLight)
-		{
-			SpotFalloff = SpotAttenuation(L, -LightData.LightDirection, LightData.SpotAnglesAndSourceRadius.xy);
-		}
-	}
-
-	LightAccumulator.EstimatedCost += 0.3f;		// running the PixelShader at all has a cost
-
-	BRANCH
-	if (LightRadiusMask > 0 && SpotFalloff > 0)
-	{
-		float SurfaceShadow = 1;
-		float SubsurfaceShadow = 1;
-
-		BRANCH
-		if (LightData.bShadowed)
-		{
-			GetShadowTerms(ScreenSpaceData, LightData, WorldPosition, LightAttenuation, SurfaceShadow, SubsurfaceShadow);
-
-			// greatly reduces shadow mapping artifacts
-			SurfaceShadow *= saturate(dot(N, L) * 6 - 0.2);
-		}
-		else
-		{
-			SurfaceShadow = ScreenSpaceData.AmbientOcclusion;
-		}
-
-		float SurfaceAttenuation	= (DistanceAttenuation * LightRadiusMask * SpotFalloff) * SurfaceShadow;
-		float SubsurfaceAttenuation	= (DistanceAttenuation * LightRadiusMask * SpotFalloff) * SubsurfaceShadow;
-
-		LightAccumulator.EstimatedCost += 0.3f;		// add the cost of getting the shadow terms
-
-		{
-			const float3 LightColor = LightData.LightColorAndFalloffExponent.rgb;
-
-			const float ClearCoatRoughness	= ScreenSpaceData.GBuffer.CustomData.y;
-
-			float3 LobeRoughness = float3(ClearCoatRoughness, ScreenSpaceData.GBuffer.Roughness, 1);
-			float3 LobeEnergy = AreaLightSpecular(LightData, LobeRoughness, ToLight, L, V, N);
-
-			// accumulate diffuse and specular
-			{
-#if 1	// for testing if there is a perf impact
-				// correct screen space subsurface scattering
-				float3 SurfaceLightingDiff = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(1, 0));
-				float3 SurfaceLightingSpec = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(0, 1));
-				LightAccumulator_Add(LightAccumulator, SurfaceLightingDiff, SurfaceLightingSpec, LightColor * (NoL * SurfaceAttenuation));
-#else
-				// wrong screen space subsurface scattering but potentially faster
-				float3 SurfaceLighting = SurfaceShading(ScreenSpaceData.GBuffer, LobeRoughness, LobeEnergy, L, V, N, float2(1, 1));
-				LightAccumulator_Add(LightAccumulator, SurfaceLighting, 0, LightColor * (NoL * SurfaceAttenuation));
-#endif
-			}
-
-			// accumulate subsurface
-			{
-				float3 SubsurfaceLighting = GFSDK_Hair_SubsurfaceShading(ScreenSpaceData.GBuffer, L, V, N);
-
-				LightAccumulator_Add(LightAccumulator, SubsurfaceLighting, 0, LightColor * SubsurfaceAttenuation);
-
-				LightAccumulator.EstimatedCost += 0.4f;		// add the cost of the lighting computations (should sum up to 1 form one light)
-			}
-		}
-	}
-
-	return LightAccumulator_GetResult(LightAccumulator);
-}
-
-//END:GWGLUE
-
 /** 
  * Pixel shader for rendering a directional light using a full screen quad. 
  */
@@ -197,14 +57,6 @@ void DirectionalPixelMain(
 		float3 WorldPosition = ScreenVector * SceneDepth + View.ViewOrigin.xyz;
 
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
-
-		//START:GWGLUE
-		BRANCH if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
-		{
-			OutColor = GFSDK_Hair_GetDynamicLighting(WorldPosition, CameraVector, InUV, ScreenSpaceData, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InUV), uint2(0,0));
-			return;
-		}
-		//END:GWGLUE
 
 		OutColor = GetDynamicLighting(WorldPosition, CameraVector, InUV, ScreenSpaceData, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InUV), uint2(0,0));
 	}
@@ -237,15 +89,6 @@ void RadialPixelMain(
 		uint2 Random = ScrambleTEA( uint2( SVPos.xy ) );
 		Random.x ^= View.Random;
 		Random.y ^= View.Random;
-
-		//START:GWGLUE
-		BRANCH if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
-		{
-			OutColor = GFSDK_Hair_GetDynamicLighting(WorldPosition, CameraVector, ScreenUV, ScreenSpaceData, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(ScreenUV), Random);
-			OutColor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.LightPosition, DeferredLightUniforms.NormalizedLightDirection);
-			return;
-		}
-		//END:GWGLUE
 
 		OutColor = GetDynamicLighting(WorldPosition, CameraVector, ScreenUV, ScreenSpaceData, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(ScreenUV), Random);
 		OutColor *= ComputeLightProfileMultiplier(WorldPosition, DeferredLightUniforms.LightPosition, DeferredLightUniforms.NormalizedLightDirection);

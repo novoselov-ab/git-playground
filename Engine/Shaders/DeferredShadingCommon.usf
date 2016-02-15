@@ -227,21 +227,10 @@ float Decode71(float Scalar, out uint Mask)
 #define SHADINGMODELID_NUM					7
 
 //START:GWGLUE
-
 #undef SHADINGMODELID_NUM
 #define SHADINGMODELID_GFSDK_HAIR			7
 #define SHADINGMODELID_NUM					8
-
-float3 GFSDK_Hair_EncodeHairTangent( float3 T )
-{
-	return T * 0.5 + 0.5;
-}
-
-float3 GFSDK_Hair_DecodeHairTangent( float3 T )
-{
-	return T * 2 - 1;
-}
-
+#define GFSDK_HAIR_MAX_SPECULAR_POWER		32
 //END:GWGLUE
 
 float EncodeShadingModelId(uint ShadingModelId)

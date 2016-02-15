@@ -253,6 +253,43 @@ void GetShadowTerms(FScreenSpaceData ScreenSpaceData, FDeferredLightData LightDa
 	}
 }
 
+//START:GWGLUE
+float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, half3 InN )
+{
+	BRANCH if (GBuffer.ShadingModelID != SHADINGMODELID_GFSDK_HAIR)
+	{
+		return SubsurfaceShading(GBuffer, L, V, InN);
+	}
+
+	float DiffuseBlend = GBuffer.Metallic;
+	float SpecularPrimaryScale = GBuffer.Specular;
+	float SpecularPrimaryPower = GBuffer.Roughness * GFSDK_HAIR_MAX_SPECULAR_POWER;
+
+	float3 T = GBuffer.WorldNormal;
+	float3 N = DecodeNormal(GBuffer.CustomData.xyz);
+	T = normalize(T);
+	N = normalize(N);
+
+	// diffuse hair shading
+	float TdotL = clamp(dot( T , L), -1.0f, 1.0f);
+	float DiffuseHair = sqrt( 1.0f - TdotL*TdotL );
+	float DiffuseSkin = max(0, dot(N, L));
+	float DiffuseSum = lerp(DiffuseHair, DiffuseSkin, DiffuseBlend);
+
+	// primary specular
+	float3 H = normalize(V + L);
+	float TdotH = clamp(dot(T, H), -1.0f, 1.0f);
+	float SpecPrimary = sqrt(1.0f - TdotH*TdotH);
+	SpecPrimary = pow(max(0, SpecPrimary), SpecularPrimaryPower);
+	float SpecularSum = SpecularPrimaryScale * SpecPrimary;
+
+	float3 DiffuseColor = GBuffer.BaseColor;
+	float3 SpecularColor = GBuffer.PrecomputedShadowFactors.xyz;
+
+	return DiffuseSum * Diffuse_Lambert(DiffuseColor) + SpecularSum * SpecularColor;
+}
+//END:GWGLUE
+
 /** Calculates lighting for a given position, normal, etc with a fully featured lighting model designed for quality. */
 float4 GetDynamicLighting(float3 WorldPosition, float3 CameraVector, float2 InUV, FScreenSpaceData ScreenSpaceData, uint ShadingModelID, FDeferredLightData LightData, float4 LightAttenuation, uint2 Random)
 {
@@ -365,7 +402,13 @@ float4 GetDynamicLighting(float3 WorldPosition, float3 CameraVector, float2 InUV
 
 			// accumulate subsurface
 			{
+//START:GWGLUE
+#if 1
+				float3 SubsurfaceLighting = GFSDK_Hair_SubsurfaceShading(ScreenSpaceData.GBuffer, L, V, N);
+#else
 				float3 SubsurfaceLighting = SubsurfaceShading(ScreenSpaceData.GBuffer, L, V, N);
+#endif
+//END::GWGLUE
 
 				LightAccumulator_Add(LightAccumulator, SubsurfaceLighting, 0, LightColor * SubsurfaceAttenuation);
 
