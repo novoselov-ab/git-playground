@@ -226,6 +226,13 @@ float Decode71(float Scalar, out uint Mask)
 #define SHADINGMODELID_TWOSIDED_FOLIAGE		6
 #define SHADINGMODELID_NUM					7
 
+//START:GWGLUE
+#undef SHADINGMODELID_NUM
+#define SHADINGMODELID_GFSDK_HAIR			7
+#define SHADINGMODELID_NUM					8
+#define GFSDK_HAIR_MAX_SPECULAR_POWER		32
+//END:GWGLUE
+
 float EncodeShadingModelId(uint ShadingModelId)
 {
 	return (ShadingModelId + .5f) / (float)SHADINGMODELID_NUM;

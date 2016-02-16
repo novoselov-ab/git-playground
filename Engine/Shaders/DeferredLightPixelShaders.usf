@@ -57,6 +57,7 @@ void DirectionalPixelMain(
 		float3 WorldPosition = ScreenVector * SceneDepth + View.ViewOrigin.xyz;
 
 		FDeferredLightData LightData = SetupLightDataForStandardDeferred();
+
 		OutColor = GetDynamicLighting(WorldPosition, CameraVector, InUV, ScreenSpaceData, ScreenSpaceData.GBuffer.ShadingModelID, LightData, GetPerPixelLightAttenuation(InUV), uint2(0,0));
 	}
 }

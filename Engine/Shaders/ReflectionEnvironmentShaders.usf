@@ -340,6 +340,13 @@ void StandardDeferredReflectionPS(
 	float2 ScreenUV = InScreenPosition.xy / InScreenPosition.w * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
 
+	//START:GWGLUE
+	BRANCH if (ScreenSpaceData.GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		return;
+	}
+	//END:GWGLUE
+
 	BRANCH
 	// Only light pixels marked as using deferred shading
 	if (ScreenSpaceData.GBuffer.ShadingModelID > 0)
@@ -453,6 +460,13 @@ void ReflectionApplyPS(
 	FGBufferData GBuffer = ScreenSpaceData.GBuffer;
 
 	OutColor = 0;
+
+	//START:GWGLUE
+	BRANCH if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+	{
+		return;
+	}
+	//END:GWGLUE
 	
 	BRANCH
 	// Only light pixels marked as lit
