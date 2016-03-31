@@ -108,19 +108,24 @@ void Main(
 		// TODO: implement a non-linear quantization of specularPrimaryPower
 		GBuffer.Metallic = HairConstantBuffer.defaultMaterial.diffuseBlend;
 
-		// Pack primary and secondary values into Specular and Roughness
 		// Scales are 0-1
 		// Shininess are 0-1000
 		// Both are normalized to 0-1
 
-		// These two are assumed to be normalized.
-		GBuffer.Specular = floor(HairConstantBuffer.defaultMaterial.specularPrimaryScale * 255) + HairConstantBuffer.defaultMaterial.specularSecondaryScale;
+		GBuffer.Specular = HairConstantBuffer.defaultMaterial.specularPrimaryScale;
+
+		// Store the secondary scale in GBufferAO
+#if ALLOW_STATIC_LIGHTING
+		GBuffer.IndirectIrradiance = 1.0f;
+#endif
+		GBuffer.GBufferAO = HairConstantBuffer.defaultMaterial.specularSecondaryScale;
 
 		// Normalize these first
 		float specPrimaryPower = HairConstantBuffer.defaultMaterial.specularPrimaryPower / GFSDK_HAIR_MAX_SPECULAR_POWER;
 		float specSecondaryPower = HairConstantBuffer.defaultMaterial.specularSecondaryPower / GFSDK_HAIR_MAX_SPECULAR_POWER;
 
-		GBuffer.Roughness = floor(specPrimaryPower * 255) + specSecondaryPower;
+		GBuffer.Roughness = specPrimaryPower;
+		GBuffer.Opacity = specSecondaryPower;
 
 		// hair tangent (this is the vector along the path of the hair ie – a tangent to the hair ‘normal’ – which there are an infinite amount of cos it’s a strand)
 		GBuffer.WorldNormal = shaderAttributes.T;
