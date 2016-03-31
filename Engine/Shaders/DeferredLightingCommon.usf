@@ -262,8 +262,16 @@ float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, h
 	}
 
 	float DiffuseBlend = GBuffer.Metallic;
-	float SpecularPrimaryScale = GBuffer.Specular;
-	float SpecularPrimaryPower = GBuffer.Roughness * GFSDK_HAIR_MAX_SPECULAR_POWER;
+	
+	// Unpack scales and powers
+	float SpecularPrimaryScale = floor(GBuffer.Specular) / 255;
+	float SpecularSecondaryScale = frac(GBuffer.Specular);
+
+	// Unpack and revert from normalized value
+	float SpecularPrimaryPower = (floor(GBuffer.Roughness) / 255) * GFSDK_HAIR_MAX_SPECULAR_POWER;
+	float SpecularSecondaryPower = frac(GBuffer.Roughness) * GFSDK_HAIR_MAX_SPECULAR_POWER;
+
+	float SecondaryOffset = GBuffer.PrecomputedShadowFactors.a;
 
 	float3 T = GBuffer.WorldNormal;
 	float3 N = DecodeNormal(GBuffer.CustomData.xyz);
@@ -281,11 +289,19 @@ float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, h
 	float TdotH = clamp(dot(T, H), -1.0f, 1.0f);
 	float SpecPrimary = sqrt(1.0f - TdotH*TdotH);
 	SpecPrimary = pow(max(0, SpecPrimary), SpecularPrimaryPower);
-	float SpecularSum = SpecularPrimaryScale * SpecPrimary;
+
+	// secondary
+	TdotH = clamp(TdotH + SecondaryOffset, -1.0, 1.0);
+    float SpecSecondary = sqrt(1 - TdotH*TdotH);
+    SpecSecondary = pow(max(0, SpecSecondary), SpecularSecondaryPower);
+
+//	float SpecularSum = SpecularPrimaryScale * SpecPrimary;
+	float SpecularSum = SpecularPrimaryScale * SpecPrimary + SpecularSecondaryScale * SpecSecondary;
 
 	float3 DiffuseColor = GBuffer.BaseColor;
 	float3 SpecularColor = GBuffer.PrecomputedShadowFactors.xyz;
 
+	//return SpecularColor; 
 	return DiffuseSum * Diffuse_Lambert(DiffuseColor) + SpecularSum * SpecularColor;
 }
 //END:GWGLUE

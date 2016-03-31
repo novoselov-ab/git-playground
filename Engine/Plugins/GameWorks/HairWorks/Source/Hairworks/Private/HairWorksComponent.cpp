@@ -28,9 +28,6 @@ FPrimitiveSceneProxy* UHairWorksComponent::CreateSceneProxy()
 {
 	auto owner = this->GetOwner();
 
-	// Call this to make sure the sim timer is ticking
-	GHairManager->EnsureHairSetup();
-
 	UE_LOG(LogHairWorks, Log, TEXT("HC:CreateSceneProxy for Hair %d, parent %d"), GetUniqueID(), owner->GetUniqueID());
 
 	if (HairInstance.Hair == nullptr)
@@ -87,7 +84,7 @@ FBoxSphereBounds UHairWorksComponent::CalcBounds(const FTransform& LocalToWorld)
 static FName Name_HairInstance = GET_MEMBER_NAME_CHECKED(UHairWorksComponent, HairInstance);
 static FName Name_Hair = GET_MEMBER_NAME_CHECKED(FHairWorksInstance, Hair);
 
-#pragma optimize("", off)
+//#pragma optimize("", off)
 
 void UHairWorksComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {

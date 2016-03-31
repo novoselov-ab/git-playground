@@ -93,23 +93,49 @@ void Main(
 
 		GBuffer.ShadingModelID = SHADINGMODELID_GFSDK_HAIR;
 
+		// Values needed to be packed into the GBuffer:
+		// hair tangent (float3) - GBuffer.WorldNormal
+		// surface normal (float3) - GBuffer.CustomData
+		// diffuseBlend (float)
+		// primaryScale (float)
+		// primaryPower/shininess (float)
+		// secondaryScale (float)
+		// secondaryPower/shininess (float)
+		// secondaryOffset (float)
+
+
 		// Metallic, Specular and Roughness are stored in a RGBA8_UNORM GBuffer texture
 		// TODO: implement a non-linear quantization of specularPrimaryPower
 		GBuffer.Metallic = HairConstantBuffer.defaultMaterial.diffuseBlend;
-		GBuffer.Specular = HairConstantBuffer.defaultMaterial.specularPrimaryScale;
-		GBuffer.Roughness = HairConstantBuffer.defaultMaterial.specularPrimaryPower / GFSDK_HAIR_MAX_SPECULAR_POWER;
+
+		// Pack primary and secondary values into Specular and Roughness
+		// Scales are 0-1
+		// Shininess are 0-1000
+		// Both are normalized to 0-1
+
+		// These two are assumed to be normalized.
+		GBuffer.Specular = floor(HairConstantBuffer.defaultMaterial.specularPrimaryScale * 255) + HairConstantBuffer.defaultMaterial.specularSecondaryScale;
+
+		// Normalize these first
+		float specPrimaryPower = HairConstantBuffer.defaultMaterial.specularPrimaryPower / GFSDK_HAIR_MAX_SPECULAR_POWER;
+		float specSecondaryPower = HairConstantBuffer.defaultMaterial.specularSecondaryPower / GFSDK_HAIR_MAX_SPECULAR_POWER;
+
+		GBuffer.Roughness = floor(specPrimaryPower * 255) + specSecondaryPower;
 
 		// hair tangent (this is the vector along the path of the hair ie – a tangent to the hair ‘normal’ – which there are an infinite amount of cos it’s a strand)
 		GBuffer.WorldNormal = shaderAttributes.T;
+
 
 		// surface normal (this is the normal of the surface of the hair at the scalp)
 		GBuffer.CustomData = EncodeNormal( shaderAttributes.N );
 
 		// RGBA8_UNORM_SRGB texture
-		GBuffer.BaseColor = hairColor;
+		GBuffer.BaseColor = hairColor; // diffuseColor
 
 		// RGBA8_UNORM texture
 		GBuffer.PrecomputedShadowFactors.rgb = HairConstantBuffer.defaultMaterial.specularColor;
+		
+		GBuffer.PrecomputedShadowFactors.a = HairConstantBuffer.defaultMaterial.specularSecondaryOffset;
 
 		#if !ALLOW_STATIC_LIGHTING
 			float4 OutGBufferE = 0;

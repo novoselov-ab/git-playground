@@ -716,6 +716,7 @@ void FDeferredShadingSceneRenderer::RenderVelocitiesInner(FRHICommandListImmedia
 		RenderDynamicVelocitiesMeshElementsInner(RHICmdList, View, 0, View.DynamicMeshElements.Num() - 1);
 
 //START:GWGLUE
+		// NOTE: This may not be the only path! Make sure this is correct.
 		FRendererHooks::get().OnRenderVelocitiesInnner(View);
 //END:GWGLUE
 

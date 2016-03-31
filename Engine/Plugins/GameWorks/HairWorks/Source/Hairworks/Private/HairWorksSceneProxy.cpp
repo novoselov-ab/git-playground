@@ -446,7 +446,7 @@ void FHairWorksSceneProxy::UpdateDynamicData_RenderThread(TSharedPtr<FDynamicRen
 
 	// Update normal center bone
 	auto HairDesc = DynamicData->HairInstanceDesc;
-	HairDesc.m_simulate = false;
+	HairDesc.m_simulate = true;
 
 	if (DynamicData->NormalCenterBoneIndex != -1)
 		HairDesc.m_hairNormalBoneIndex = DynamicData->NormalCenterBoneIndex;
