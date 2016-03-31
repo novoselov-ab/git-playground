@@ -362,7 +362,15 @@ void EncodeGBuffer(
 
 #if ALLOW_STATIC_LIGHTING
 		// No space for AO. Multiply IndirectIrradiance by AO instead of storing.
-		OutGBufferC.a = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
+		//START:GWGLUE
+		if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
+		{
+			OutGBufferC.a = GBuffer.GBufferAO;		
+		} else
+		{
+			OutGBufferC.a = EncodeIndirectIrradiance(GBuffer.IndirectIrradiance * GBuffer.GBufferAO) + QuantizationBias * (1.0 / 255.0);
+		}
+		//END:GWGLUE
 #else
 		OutGBufferC.a = GBuffer.GBufferAO;
 #endif
@@ -417,8 +425,19 @@ FGBufferData DecodeGBufferData(
 	GBuffer.Roughness = InGBufferB.b;
 	GBuffer.CustomData = InGBufferD.gba;
 #if ALLOW_STATIC_LIGHTING
-	GBuffer.GBufferAO = 1;
-	GBuffer.IndirectIrradiance = DecodeIndirectIrradiance(InGBufferC.a);
+	
+	//START:GWGLUE
+	if (GBuffer.ShadingModelID)
+	{
+		GBuffer.GBufferAO = InGBufferC.a;
+		GBuffer.IndirectIrradiance = 1;
+	} else
+	{
+		GBuffer.GBufferAO = 1;
+		GBuffer.IndirectIrradiance = DecodeIndirectIrradiance(InGBufferC.a);
+	}
+	//END:GWGLUE
+
 #else
 	GBuffer.GBufferAO = InGBufferC.a;
 	GBuffer.IndirectIrradiance = 1;

@@ -265,11 +265,7 @@ float3 GFSDK_Hair_SubsurfaceShading( FGBufferData GBuffer, float3 L, float3 V, h
 	
 	// Unpack scales and powers
 	float SpecularPrimaryScale = GBuffer.Specular;
-#if ALLOW_STATIC_LIGHTING
-	float SpecularSecondaryScale = GBuffer.IndirectIrradiance;
-#else
 	float SpecularSecondaryScale = GBuffer.GBufferAO;
-#endif
 
 	// Unpack and revert from normalized value
 	float SpecularPrimaryPower = GBuffer.Roughness * GFSDK_HAIR_MAX_SPECULAR_POWER;

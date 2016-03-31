@@ -115,9 +115,6 @@ void Main(
 		GBuffer.Specular = HairConstantBuffer.defaultMaterial.specularPrimaryScale;
 
 		// Store the secondary scale in GBufferAO
-#if ALLOW_STATIC_LIGHTING
-		GBuffer.IndirectIrradiance = 1.0f;
-#endif
 		GBuffer.GBufferAO = HairConstantBuffer.defaultMaterial.specularSecondaryScale;
 
 		// Normalize these first
