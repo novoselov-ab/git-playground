@@ -427,7 +427,7 @@ FGBufferData DecodeGBufferData(
 #if ALLOW_STATIC_LIGHTING
 	
 	//START:GWGLUE
-	if (GBuffer.ShadingModelID)
+	if (GBuffer.ShadingModelID == SHADINGMODELID_GFSDK_HAIR)
 	{
 		GBuffer.GBufferAO = InGBufferC.a;
 		GBuffer.IndirectIrradiance = 1;
