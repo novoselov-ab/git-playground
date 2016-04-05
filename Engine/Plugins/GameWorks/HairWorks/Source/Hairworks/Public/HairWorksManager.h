@@ -94,9 +94,9 @@ private:
 
 	void FreeResources();
 	void PostRHIInitLoad();
-	void AllocHairDepthZ(FPooledRenderTargetDesc Desc);
-	void AllocHairLightAttenuation(FPooledRenderTargetDesc Desc);
-	void AllocHairMask(FPooledRenderTargetDesc Desc);
+// 	void AllocHairDepthZ(FPooledRenderTargetDesc Desc);
+// 	void AllocHairLightAttenuation(FPooledRenderTargetDesc Desc);
+// 	void AllocHairMask(FPooledRenderTargetDesc Desc);
 	void DeallocRenderTargets();
 	void LoadSDKDll();
 };

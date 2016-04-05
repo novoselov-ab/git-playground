@@ -22,7 +22,7 @@ public:
 
 	uint32 GetMemoryFootprint(void) const override;
 	void CreateRenderThreadResources() override;
-	FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) override;
+	FPrimitiveViewRelevance GetViewRelevance(const FSceneView* View) const override;
 
 	void UpdateDynamicData_RenderThread(TSharedPtr<FDynamicRenderData> DynamicData);
 

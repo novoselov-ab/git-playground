@@ -1,4 +1,4 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
 
@@ -30,8 +30,8 @@ public class Renderer : ModuleRules
 				"RenderCore", 
 				"RHI", 
 				"ShaderCore",
-				"UtilityShaders"
-            }
+				"UtilityShaders",
+			}
             );
 
         PrivateIncludePathModuleNames.AddRange(new string[] { "HeadMountedDisplay", "LightPropagationVolumeRuntime" });

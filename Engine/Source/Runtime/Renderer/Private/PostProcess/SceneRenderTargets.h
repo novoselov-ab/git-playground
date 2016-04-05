@@ -1,4 +1,4 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
 	SceneRenderTargets.h: Scene render target definitions.
@@ -107,6 +107,34 @@ BEGIN_UNIFORM_BUFFER_STRUCT(FGBufferResourceStruct, )
 	DECLARE_UNIFORM_BUFFER_STRUCT_MEMBER_SAMPLER( SamplerState,			GBufferVelocityTextureSampler)
 END_UNIFORM_BUFFER_STRUCT( FGBufferResourceStruct )
 
+/*
+* Stencil layout during basepass / deferred decals:
+*		BIT ID    | USE
+*		[0]       | sandbox bit (this is not actually output in the base pass, but in the decal passes)
+*		[1]       | unallocated
+*		[2]       | unallocated
+*		[3]       | unallocated
+*		[4]       | Lighting channels
+*		[5]       | Lighting channels
+*		[6]       | Lighting channels
+*		[7]       | primitive receive decal bit
+*
+* After deferred decals, stencil is cleared to 0 and no longer packed in this way, to ensure use of fast hardware clears and HiStencil.
+*/
+#define STENCIL_SANDBOX_BIT_ID				0
+#define STENCIL_LIGHTING_CHANNELS_BIT_ID	4
+#define STENCIL_RECEIVE_DECAL_BIT_ID		7
+
+// Outputs a compile-time constant stencil's bit mask ready to be used
+// in TStaticDepthStencilState<> template parameter. It also takes care
+// of masking the Value macro parameter to only keep the low significant
+// bit to ensure to not overflow on other bits.
+#define GET_STENCIL_BIT_MASK(BIT_NAME,Value) uint8((uint8(Value) & uint8(0x01)) << (STENCIL_##BIT_NAME##_BIT_ID))
+
+#define STENCIL_SANDBOX_MASK GET_STENCIL_BIT_MASK(SANDBOX,1)
+
+#define STENCIL_LIGHTING_CHANNELS_MASK(Value) uint8((Value & 0x7) << STENCIL_LIGHTING_CHANNELS_BIT_ID)
+
 /**
  * Encapsulates the render targets used for scene rendering.
  */
@@ -119,6 +147,8 @@ public:
 	/** Singletons. At the moment parallel tasks get their snapshot from the rhicmdlist */
 	static FSceneRenderTargets& Get(FRHICommandList& RHICmdList);
 	static FSceneRenderTargets& Get(FRHICommandListImmediate& RHICmdList);
+	static FSceneRenderTargets& Get(FRHIAsyncComputeCommandListImmediate& RHICmdList);
+
 	// this is a placeholder, the context should come from somewhere. This is very unsafe, please don't use it!
 	static FSceneRenderTargets& Get_Todo_PassContext();
 	// As above but relaxed checks and always gives the global FSceneRenderTargets. The intention here is that it is only used for constants that don't change during a frame. This is very unsafe, please don't use it!
@@ -131,6 +161,8 @@ public:
 	/** Destruct all snapshots */
 	void DestroyAllSnapshots();
 
+	static TAutoConsoleVariable<int32> CVarSetSeperateTranslucencyEnabled;
+
 protected:
 	/** Constructor */
 	FSceneRenderTargets(): 
@@ -142,7 +174,8 @@ protected:
 		LargestDesiredSizeLastFrame( 0, 0 ),
 		ThisFrameNumber( 0 ),
 		bVelocityPass(false),
-		BufferSize(0, 0), 
+		bSeparateTranslucencyPass(false),
+		BufferSize(0, 0),
 		SmallColorDepthDownsampleFactor(2),
 		bLightAttenuationEnabled(true),
 		bUseDownsizedOcclusionQueries(true),
@@ -157,7 +190,8 @@ protected:
 		CurrentFeatureLevel(ERHIFeatureLevel::Num),
 		CurrentShadingPath(EShadingPath::Num),
 		bAllocateVelocityGBuffer(false),
-		bSnapshot(false)
+		bSnapshot(false),
+		QuadOverdrawIndex(INDEX_NONE)
 		{
 		}
 	/** Constructor that creates snapshot */
@@ -176,25 +210,25 @@ public:
 	 * Checks that scene render targets are ready for rendering a view family of the given dimensions.
 	 * If the allocated render targets are too small, they are reallocated.
 	 */
-	void Allocate(const FSceneViewFamily& ViewFamily);
+	void Allocate(FRHICommandList& RHICmdList, const FSceneViewFamily& ViewFamily);
 
 	/**
 	 * Forward shading can't know how big the optimal atlased shadow buffer will be, so provide a set it up per frame.
 	 */
-	void AllocateForwardShadingShadowDepthTarget(const FIntPoint& ShadowBufferResolution);
+	void AllocateForwardShadingShadowDepthTarget(FRHICommandListImmediate& RHICmdList, const FIntPoint& ShadowBufferResolution);
 
 	/**
 	 *
 	 */
 	void SetBufferSize(int32 InBufferSizeX, int32 InBufferSizeY);
 
-	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1));
+	void BeginRenderingGBuffer(FRHICommandList& RHICmdList, ERenderTargetLoadAction ColorLoadAction, ERenderTargetLoadAction DepthLoadAction, bool bBindQuadOverdrawBuffers, const FLinearColor& ClearColor = FLinearColor(0, 0, 0, 1));
 	void FinishRenderingGBuffer(FRHICommandListImmediate& RHICmdList);
 
 	/**
 	 * Sets the scene color target and restores its contents if necessary
 	 */
-	void BeginRenderingSceneColor(FRHICommandList& RHICmdList, ESimpleRenderTargetMode RenderTargetMode = ESimpleRenderTargetMode::EUninitializedColorExistingDepth, FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite);
+	void BeginRenderingSceneColor(FRHICommandList& FRHICommandListImmediate, ESimpleRenderTargetMode RenderTargetMode = ESimpleRenderTargetMode::EUninitializedColorExistingDepth, FExclusiveDepthStencil DepthStencilAccess = FExclusiveDepthStencil::DepthWrite_StencilWrite, bool bTransitionWritable = true);
 	
 	/**
 	 * Called when finished rendering to the scene color surface
@@ -227,17 +261,26 @@ public:
 	void FinishRenderingShadowDepth(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect = FResolveRect());
 
 	void BeginRenderingReflectiveShadowMap(FRHICommandList& RHICmdList, class FLightPropagationVolume* Lpv);
-	void FinishRenderingReflectiveShadowMap(FRHICommandList& RHICmdList, const FResolveRect& ResolveRect = FResolveRect());
+	void FinishRenderingReflectiveShadowMap(FRHICommandList& RHICmdList, class FLightPropagationVolume* Lpv, const FResolveRect& ResolveRect = FResolveRect());
 
 	/** Resolves the appropriate shadow depth cube map and restores default state. */
 	void FinishRenderingCubeShadowDepth(FRHICommandList& RHICmdList, int32 ShadowResolution);
 	
-	void BeginRenderingTranslucency(FRHICommandList& RHICmdList, const class FViewInfo& View);
+	void BeginRenderingTranslucency(FRHICommandList& RHICmdList, const class FViewInfo& View, bool bFirstTimeThisFrame = true);
 	void FinishRenderingTranslucency(FRHICommandListImmediate& RHICmdList, const class FViewInfo& View);
 
 	bool BeginRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, bool bFirstTimeThisFrame);
 	void FinishRenderingSeparateTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View);
-	void FreeSeparateTranslucency();
+	void FreeSeparateTranslucency()
+	{
+		SeparateTranslucencyRT.SafeRelease();
+		check(!SeparateTranslucencyRT);
+
+		if (SeparateTranslucencyDepthRT.GetReference())
+		{
+			SeparateTranslucencyDepthRT.SafeRelease();
+		}
+	}
 
 	void ResolveSceneDepthTexture(FRHICommandList& RHICmdList);
 	void ResolveSceneDepthToAuxiliaryTexture(FRHICommandList& RHICmdList);
@@ -248,8 +291,51 @@ public:
 	void BeginRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList);
 	void FinishRenderingSceneAlphaCopy(FRHICommandListImmediate& RHICmdList);
 
-	void BeginRenderingLightAttenuation(FRHICommandList& RHICmdList, bool bClearToWhite=false);
+	void BeginRenderingLightAttenuation(FRHICommandList& RHICmdList, bool bClearToWhite = false);
 	void FinishRenderingLightAttenuation(FRHICommandList& RHICmdList);
+
+
+
+	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucency(FRHICommandList& RHICmdList, FIntPoint Size)
+	{
+		if (!SeparateTranslucencyRT || SeparateTranslucencyRT->GetDesc().Extent != Size)
+		{
+			uint32 Flags = TexCreate_RenderTargetable;
+
+#if PLATFORM_XBOXONE
+			// Evil place to put this I know, but it's almost 4.11 deadline!
+			Flags |= TexCreate_NoFastClear;
+#endif
+
+			// Create the SeparateTranslucency render target (alpha is needed to lerping)
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_FloatRGBA, FClearValueBinding::Black, TexCreate_None, Flags, false));
+			Desc.AutoWritable = false;
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SeparateTranslucencyRT, TEXT("SeparateTranslucency"));
+		}
+		return SeparateTranslucencyRT;
+	}
+
+	bool IsSeparateTranslucencyDepthValid()
+	{
+		return SeparateTranslucencyDepthRT != nullptr;
+	}
+
+	TRefCountPtr<IPooledRenderTarget>& GetSeparateTranslucencyDepth(FRHICommandList& RHICmdList, FIntPoint Size)
+	{
+		if (!SeparateTranslucencyDepthRT || SeparateTranslucencyDepthRT->GetDesc().Extent != Size)
+		{
+			// Create the SeparateTranslucency depth render target 
+			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(Size, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable, true));
+			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, SeparateTranslucencyDepthRT, TEXT("SeparateTranslucencyDepth"));
+		}
+		return SeparateTranslucencyDepthRT;
+	}
+	const FTexture2DRHIRef& GetSeparateTranslucencyDepthSurface()
+	{
+		return (const FTexture2DRHIRef&)SeparateTranslucencyDepthRT->GetRenderTargetItem().TargetableTexture;
+	}
+
+
 
 	/**
 	 * Cleans up editor primitive targets that we no longer need
@@ -268,13 +354,13 @@ public:
 	 * Gets the editor primitives color target/shader resource.  This may recreate the target
 	 * if the msaa settings dont match
 	 */
-	const FTexture2DRHIRef& GetEditorPrimitivesColor();
+	const FTexture2DRHIRef& GetEditorPrimitivesColor(FRHICommandList& RHICmdList);
 
 	/**
 	 * Gets the editor primitives depth target/shader resource.  This may recreate the target
 	 * if the msaa settings dont match
 	 */
-	const FTexture2DRHIRef& GetEditorPrimitivesDepth();
+	const FTexture2DRHIRef& GetEditorPrimitivesDepth(FRHICommandList& RHICmdList);
 
 
 	// FRenderResource interface.
@@ -369,23 +455,10 @@ public:
 
 	IPooledRenderTarget* GetGBufferVelocityRT();
 
-	int32 GetGBufferEIndex() const
-	{
-		return bAllowStaticLighting ? 5 : -1;
-	}
-
-	int32 GetGBufferVelocityIndex() const
-	{
-		if (bAllocateVelocityGBuffer)
-		{
-			return bAllowStaticLighting ? 6 : 5;
-		}
-
-		return -1;
-	}
+	int32 GetQuadOverdrawIndex() const { return QuadOverdrawIndex; }
 
 	// @return can be 0 if the feature is disabled
-	IPooledRenderTarget* RequestCustomDepth(bool bPrimitives);
+	IPooledRenderTarget* RequestCustomDepth(FRHICommandListImmediate& RHICmdList, bool bPrimitives);
 
 	bool IsCustomDepthPassWritingStencil() const;
 
@@ -407,11 +480,12 @@ public:
 	FUniformBufferRHIParamRef GetGBufferResourcesUniformBuffer() const 
 	{ 
 		// if this triggers you need to make sure the GBuffer is not getting released before (using AdjustGBufferRefCount(1) and AdjustGBufferRefCount(-1))
+		// Maybe You use a SceneTexture material expression that should set MaterialCompilationOutput.bNeedsGBuffer
 		check(IsValidRef(GBufferResourcesUniformBuffer));
 
 		return GBufferResourcesUniformBuffer; 
 	}
-	/** */
+	/** Returns the size of most screen space render targets e.g. SceneColor, SceneDepth, GBuffer, ... might be different from final RT or output Size because of ScreenPercentage use. */
 	FIntPoint GetBufferSizeXY() const { return BufferSize; }
 	/** */
 	uint32 GetSmallColorDepthDownsampleFactor() const { return SmallColorDepthDownsampleFactor; }
@@ -456,15 +530,19 @@ public:
 
 	// allows to release the GBuffer once post process materials no longer need it
 	// @param 1: add a reference, -1: remove a reference
-	void AdjustGBufferRefCount(int Delta);
+	void AdjustGBufferRefCount(FRHICommandList& RHICmdList, int Delta);
 
 	//
 	void PreallocGBufferTargets(bool bShouldRenderVelocities);
-	void AllocGBufferTargets();
+	void AllocGBufferTargets(FRHICommandList& RHICmdList);
 
-	void AllocLightAttenuation();
+	void AllocLightAttenuation(FRHICommandList& RHICmdList);
 
-	void AllocateReflectionTargets();
+	void AllocateReflectionTargets(FRHICommandList& RHICmdList);
+
+	void AllocateLightingChannelTexture(FRHICommandList& RHICmdList);
+
+	void AllocateDebugViewModeTargets(FRHICommandList& RHICmdList);
 
 	TRefCountPtr<IPooledRenderTarget>& GetReflectionBrightnessTarget();
 
@@ -477,15 +555,14 @@ public:
 
 	bool IsSeparateTranslucencyActive(const FViewInfo& View) const;
 
-	bool IsVelocityPass() const
+	bool IsSeparateTranslucencyPass()
 	{
-		return bVelocityPass;
+		return bSeparateTranslucencyPass;
 	}
-	void SetVelocityPass(bool bInVelocityPass)
-	{
-		bVelocityPass = bInVelocityPass;
-	}
-
+	
+	// Can be called when the Scene Color content is no longer needed. As we create SceneColor on demand we can make sure it is created with the right format.
+	// (as a call to SetSceneColor() can override it with a different format)
+	void ReleaseSceneColor();
 
 private: // Get...() methods instead of direct access
 
@@ -494,6 +571,7 @@ private: // Get...() methods instead of direct access
 	TRefCountPtr<IPooledRenderTarget> SceneColor[(int32)EShadingPath::Num];
 public:
 	// JDM: Exposed this as public - probably shouldn't. Look into a proper way to do this.
+	// JDM: Is this still used?
 	// also used as LDR scene color
 	TRefCountPtr<IPooledRenderTarget> LightAttenuation;
 
@@ -504,6 +582,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> DirectionalOcclusion;
 	//
 	TRefCountPtr<IPooledRenderTarget> SceneDepthZ;
+	TRefCountPtr<FRHIShaderResourceView> SceneStencilSRV;
+	TRefCountPtr<IPooledRenderTarget> LightingChannels;
 	// Mobile without frame buffer fetch (to get depth from alpha).
 	TRefCountPtr<IPooledRenderTarget> SceneAlphaCopy;
 	// Auxiliary scene depth target. The scene depth is resolved to this surface when targeting SM4. 
@@ -527,6 +607,8 @@ public:
 
 	// for AmbientOcclusion, only valid for a short time during the frame to allow reuse
 	TRefCountPtr<IPooledRenderTarget> ScreenSpaceAO;
+	// for shader/quad complexity, the temporary quad descriptors and complexity.
+	TRefCountPtr<IPooledRenderTarget> QuadOverdrawBuffer;
 	// used by the CustomDepth material feature, is allocated on demand or if r.CustomDepth is 2
 	TRefCountPtr<IPooledRenderTarget> CustomDepth;
 	// used by the CustomDepth material feature for stencil
@@ -575,6 +657,7 @@ public:
 
 	/** ONLY for snapshots!!! this is a copy of the SeparateTranslucencyRT from the view state. */
 	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyRT;
+	TRefCountPtr<IPooledRenderTarget> SeparateTranslucencyDepthRT;
 
 	// todo: free ScreenSpaceAO so pool can reuse
 	bool bScreenSpaceAOIsValid;
@@ -600,34 +683,35 @@ private:
 	uint32 ThisFrameNumber;
 
 	bool bVelocityPass;
+	bool bSeparateTranslucencyPass;
 	/** CAUTION: When adding new data, make sure you copy it in the snapshot constructor! **/
 
 	/**
 	 * Initializes the editor primitive color render target
 	 */
-	void InitEditorPrimitivesColor();
+	void InitEditorPrimitivesColor(FRHICommandList& RHICmdList);
 
 	/**
 	 * Initializes the editor primitive depth buffer
 	 */
-	void InitEditorPrimitivesDepth();
+	void InitEditorPrimitivesDepth(FRHICommandList& RHICmdList);
 
 	/** Allocates render targets for use with the forward shading path. */
-	void AllocateForwardShadingPathRenderTargets();	
+	void AllocateForwardShadingPathRenderTargets(FRHICommandList& RHICmdList);
 
 	/** Allocates render targets for use with the deferred shading path. */
-	void AllocateDeferredShadingPathRenderTargets();
+	void AllocateDeferredShadingPathRenderTargets(FRHICommandList& RHICmdList);
 
 	/** Allocates render targets for use with the current shading path. */
-	void AllocateRenderTargets();
+	void AllocateRenderTargets(FRHICommandList& RHICmdList);
 
 	/** Allocates common depth render targets that are used by both forward and deferred rendering paths */
-	void AllocateCommonDepthTargets();
+	void AllocateCommonDepthTargets(FRHICommandList& RHICmdList);
 
 	/** Determine the appropriate render target dimensions. */
 	FIntPoint ComputeDesiredSize(const FSceneViewFamily& ViewFamily);
 
-	void AllocSceneColor();
+	void AllocSceneColor(FRHICommandList& RHICmdList);
 
 	// internal method, used by AdjustGBufferRefCount()
 	void ReleaseGBufferTargets();
@@ -694,9 +778,13 @@ private:
 
 	/** Helpers to track scenedepth state on platforms that need to propagate clear information across parallel rendering boundaries. */
 	bool bSceneDepthCleared;
-	
+
 	/** true is this is a snapshot on the scene allocator */
 	bool bSnapshot;
+
+	/** Helpers to track the bound index of the quad overdraw UAV. Needed because UAVs overlap RTs in DX11 */
+	int32 QuadOverdrawIndex;
+
 	/** All outstanding snapshots */
 	TArray<FSceneRenderTargets*> Snapshots;
 

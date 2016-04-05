@@ -413,7 +413,7 @@ void FHairWorksSceneProxy::CreateRenderThreadResources()
 	UE_LOG(LogHairWorks, Log, TEXT("Created new hair instance %d"), static_cast<int32>(HairInstanceId));
 }
 
-FPrimitiveViewRelevance FHairWorksSceneProxy::GetViewRelevance(const FSceneView* View)
+FPrimitiveViewRelevance FHairWorksSceneProxy::GetViewRelevance(const FSceneView* View) const
 {
 	FPrimitiveViewRelevance ViewRel;
 	ViewRel.bDrawRelevance = IsShown(View);

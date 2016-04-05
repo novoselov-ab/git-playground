@@ -1,4 +1,4 @@
-// Copyright 1998-2015 Epic Games, Inc. All Rights Reserved.
+// Copyright 1998-2016 Epic Games, Inc. All Rights Reserved.
 
 #include "ShaderPreprocessor.h"
 #include "ModuleManager.h"
@@ -140,8 +140,6 @@ bool PreprocessShader(
 	FScopeLock McppLock(&McppCriticalSection);
 
 	FMcppFileLoader FileLoader(ShaderInput);
-
-	UE_LOG(LogTemp, Log, TEXT("Doing preprocess step for file %s"), *FileLoader.GetInputShaderFilename());
 
 	AddMcppDefines(McppOptions, ShaderInput.Environment.GetDefinitions());
 	AddMcppDefines(McppOptions, AdditionalDefines.GetDefinitionMap());

@@ -84,20 +84,20 @@ void FHairWorksManager::PostRHIInitLoad()
 
 
 
-void FHairWorksManager::AllocHairDepthZ(FPooledRenderTargetDesc Desc)
-{
-	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairDepthZ, TEXT("HairDepthZ"));
-}
-
-void FHairWorksManager::AllocHairLightAttenuation(FPooledRenderTargetDesc Desc)
-{
-	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairLightAttenuation, TEXT("HairLightAttenuation"));
-}
-
-void FHairWorksManager::AllocHairMask(FPooledRenderTargetDesc Desc)
-{
-	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairMask, TEXT("HairMask"));
-}
+// void FHairWorksManager::AllocHairDepthZ(FPooledRenderTargetDesc Desc)
+// {
+// 	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairDepthZ, TEXT("HairDepthZ"));
+// }
+// 
+// void FHairWorksManager::AllocHairLightAttenuation(FPooledRenderTargetDesc Desc)
+// {
+// 	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairLightAttenuation, TEXT("HairLightAttenuation"));
+// }
+// 
+// void FHairWorksManager::AllocHairMask(FPooledRenderTargetDesc Desc)
+// {
+// 	GetRendererModule().RenderTargetPoolFindFreeElement(Desc, HairMask, TEXT("HairMask"));
+// }
 
 void FHairWorksManager::DeallocRenderTargets()
 {
