@@ -92,19 +92,19 @@ applications.
 Gallery
 ---------
 
-### Blast Sample: tower explode
+### Tower explosion
 ![Alt text](/images/tower_explode.png?raw=true "Blast Sample: tower explode")
-### Blast Sample: bunny impact
+### Bunny impact damage
 ![Alt text](/images/bunny_impact.png?raw=true "Blast Sample: bunny impact")
-### Blast Sample: cube explode
+### Layered cube explosion
 ![Alt text](/images/cube_explode.png?raw=true "Blast Sample: cube explode")
-### Blast Sample: table impact
+### Table impact damage
 ![Alt text](/images/table_impact_wireframe.png?raw=true "Blast Sample: table impact")
-### Blast Sample: tower slice
+### Tower slice
 ![Alt text](/images/tower_slice.png?raw=true "Blast Sample: tower slice")
-### Blast Sample: wall impact
+### Wall impact damage
 ![Alt text](/images/wall_impact.png?raw=true "Blast Sample: wall impact")
-### Blast Sample: stress solver
+### Stress solver
 ![Alt text](/images/stress.png?raw=true "Blast Sample: stress solver")
-### Blast Sample: joints
+### Joints
 ![Alt text](/images/joints.png?raw=true "Blast Sample: joints")
