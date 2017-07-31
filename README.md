@@ -55,11 +55,11 @@ Current blast extensions:
 Documentation
 -------------
 
-See [docs/api_docs/index.html](docs/api_docs/index.html) for api documentation.
+See [docs/api_docs/index.html]() for api documentation.
 
-See [index.html](docs/source_docs/index.html) for full source doxygen pages.
+See [docs/source_docs/index.html] for full source doxygen pages.
 
-See [](docs/release_notes.txt) for changes.
+See [docs/release_notes.txt](docs/release_notes.txt) for changes.
 
 Compiling
 ---------
