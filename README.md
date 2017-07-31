@@ -61,6 +61,10 @@ See [docs/source_docs/index.html] for full source doxygen pages.
 
 See [docs/release_notes.txt](docs/release_notes.txt) for changes.
 
+T: [](docs/release_notes.txt)
+T: (docs/release_notes.txt)
+T: [*](docs/release_notes.txt)
+
 Compiling
 ---------
 
